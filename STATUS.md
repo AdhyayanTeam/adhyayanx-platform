@@ -1,5 +1,7 @@
 # ADX Platform Status
 
+_Last updated: 2026-07-09_
+
 ## Foundation
 
 - [x] Runtime Specification
