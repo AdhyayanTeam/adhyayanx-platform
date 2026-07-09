@@ -19,16 +19,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          uv sync
-          ls -la .venv/bin/ 2>/dev/null || echo "no .venv/bin"
-
-      - name: Debug PATH
-        run: |
-          echo "Python: $(which python)"
-          echo "PATH: $PATH"
-          uv run python -c "import ruff; print('ruff:', ruff.__version__)" 2>&1 || echo "ruff import failed"
-          ls -la .venv/bin/ruff 2>/dev/null || echo "ruff binary not found"
+        run: uv sync --frozen --extra dev
 
       - name: Ruff check
         run: uv run ruff check .
