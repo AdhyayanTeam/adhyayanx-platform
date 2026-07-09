@@ -27,6 +27,7 @@ class Bootstrap:
 
     def _wire_infrastructure(self) -> None:
         from infrastructure.postgres.database import Database
+
         db = Database(self.settings)
         self.container.register_instance(Database, db)
 
@@ -45,7 +46,7 @@ class Bootstrap:
         event_bus = EventBus()
         publisher = Publisher()
 
-        self.container.register_instance(EventBusInterface, event_bus)
+        self.container.register_instance(EventBusInterface, event_bus)  # type: ignore[type-abstract]
         self.container.register_instance(Publisher, publisher)
 
     def _discover_extensions(self) -> None:

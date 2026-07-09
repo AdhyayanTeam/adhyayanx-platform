@@ -1,4 +1,3 @@
-
 from adx_platform.contracts.event import DomainEvent
 
 

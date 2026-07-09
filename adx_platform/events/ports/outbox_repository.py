@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 
@@ -10,8 +13,8 @@ class OutboxEntry:
     event_type: str
     aggregate_type: str
     aggregate_id: UUID
-    data: dict
-    metadata: dict
+    data: dict[str, Any]
+    metadata: dict[str, Any]
     status: str  # pending | processed | failed
     retry_count: int = 0
     max_retries: int = 5
@@ -23,21 +26,18 @@ class OutboxEntry:
 
 class OutboxRepository(ABC):
     @abstractmethod
-    async def append(self, entry: OutboxEntry) -> None:
-        ...
+    async def append(self, entry: OutboxEntry) -> None: ...
 
     @abstractmethod
-    async def fetch_next_batch(self, limit: int = 50) -> list[OutboxEntry]:
-        ...
+    async def fetch_next_batch(self, limit: int = 50) -> list[OutboxEntry]: ...
 
     @abstractmethod
-    async def mark_processed(self, entry_id: UUID) -> None:
-        ...
+    async def mark_processed(self, entry_id: UUID) -> None: ...
 
     @abstractmethod
-    async def increment_retry(self, entry_id: UUID, error: str, next_retry_at: datetime) -> None:
-        ...
+    async def increment_retry(
+        self, entry_id: UUID, error: str, next_retry_at: datetime
+    ) -> None: ...
 
     @abstractmethod
-    async def dead_letter(self, entry_id: UUID, error: str) -> None:
-        ...
+    async def dead_letter(self, entry_id: UUID, error: str) -> None: ...

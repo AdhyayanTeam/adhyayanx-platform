@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -13,15 +15,12 @@ class Capability(ABC):
 
     @property
     @abstractmethod
-    def commands(self) -> list[type["Command"]]:
-        ...
+    def commands(self) -> list[type[Command]]: ...
 
     @property
     @abstractmethod
-    def events(self) -> list[type["DomainEvent"]]:
-        ...
+    def events(self) -> list[type[DomainEvent]]: ...
 
     @property
     @abstractmethod
-    def policies(self) -> list[type["Policy"]]:
-        ...
+    def policies(self) -> list[type[Policy]]: ...

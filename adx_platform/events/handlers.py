@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 async def log_all_events(event: DomainEvent) -> None:
     """Generic handler that logs every event. Useful for debugging."""
     import logging
+
     logger = logging.getLogger("adx_platform.events")
     logger.debug(
         "Event: %s [%s]",

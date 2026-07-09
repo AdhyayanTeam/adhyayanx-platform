@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from kernel.container import Container
@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 def discover_blueprints(container: Container) -> list[str]:
     """Discover blueprint packages by scanning the blueprints directory."""
     import blueprints
-    discovered = []
+
+    discovered: list[str] = []
     for _, name, is_pkg in pkgutil.iter_modules(blueprints.__path__):
         if is_pkg:
             module = importlib.import_module(f"blueprints.{name}")
@@ -21,9 +22,9 @@ def discover_blueprints(container: Container) -> list[str]:
     return discovered
 
 
-def discover_handlers(container: Container) -> dict[str, list]:
+def discover_handlers(container: Container) -> dict[str, list[Any]]:
     """Discover event handlers across all registered modules."""
-    handlers: dict[str, list] = {}
+    handlers: dict[str, list[Any]] = {}
     handler_modules = [
         "adx_platform.events.handlers",
         "adx_platform.organizations.handlers",

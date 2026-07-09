@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,21 +16,21 @@ class PostgresOrganizationRepository(OrganizationRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def load(self, id: UUID) -> dict | None:
+    async def load(self, id: UUID) -> dict[str, Any] | None:
         result = await self._session.execute(
             select(OrganizationTable).where(OrganizationTable.id == id)
         )
         row = result.scalar_one_or_none()
         return self._to_dict(row) if row else None
 
-    async def load_by_slug(self, slug: str) -> dict | None:
+    async def load_by_slug(self, slug: str) -> dict[str, Any] | None:
         result = await self._session.execute(
             select(OrganizationTable).where(OrganizationTable.slug == slug)
         )
         row = result.scalar_one_or_none()
         return self._to_dict(row) if row else None
 
-    async def save(self, organization: dict) -> None:
+    async def save(self, organization: dict[str, Any]) -> None:
         stmt = select(OrganizationTable).where(OrganizationTable.id == organization["id"])
         result = await self._session.execute(stmt)
         existing = result.scalar_one_or_none()
@@ -74,7 +75,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
         )
         return result.scalar_one_or_none() is not None
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict]:
+    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         result = await self._session.execute(
             select(OrganizationTable)
             .order_by(OrganizationTable.created_at)
@@ -83,7 +84,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
         )
         return [self._to_dict(row) for row in result.scalars().all()]
 
-    def _to_dict(self, row: OrganizationTable) -> dict:
+    def _to_dict(self, row: OrganizationTable) -> dict[str, Any]:
         return {
             "id": row.id,
             "name": row.name,

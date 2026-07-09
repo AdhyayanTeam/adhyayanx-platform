@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TypeVar
 
 from fastapi import Request
@@ -10,10 +11,11 @@ T = TypeVar("T")
 
 
 def get_container(request: Request) -> Container:
-    return request.app.state.container
+    container: Container = request.app.state.container
+    return container
 
 
-def resolve(interface: type[T]) -> T:
+def resolve(interface: type[T]) -> Callable[[Request], T]:
     """FastAPI dependency that resolves T from the DI container."""
 
     def _resolve(request: Request) -> T:

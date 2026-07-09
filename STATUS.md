@@ -11,6 +11,14 @@
 - [ ] Workspace
 - [ ] Configuration
 
+## Quality
+
+- [x] Ruff check (0 errors)
+- [x] MyPy strict (0 errors)
+- [x] Integration test (org lifecycle)
+- [x] CI (GitHub Actions)
+- [x] Docker Compose (PostgreSQL)
+
 ## Blueprints
 
 - [ ] Academy
@@ -25,6 +33,7 @@
 
 ## Infrastructure
 
-- [x] PostgreSQL
+- [x] PostgreSQL schema
+- [x] Docker Compose
 - [ ] Redis
 - [ ] Queue

@@ -47,21 +47,23 @@ class PostgresOutboxRepository(OutboxRepository):
         )
         entries = []
         for row in rows.mappings():
-            entries.append(OutboxEntry(
-                id=row["id"],
-                event_type=row["event_type"],
-                aggregate_type=row["aggregate_type"],
-                aggregate_id=row["aggregate_id"],
-                data=row["data"],
-                metadata=row["extra"],
-                status=row["status"],
-                retry_count=row["retry_count"],
-                max_retries=row["max_retries"],
-                last_error=row.get("last_error"),
-                created_at=row["created_at"],
-                processed_at=row.get("processed_at"),
-                next_retry_at=row.get("next_retry_at"),
-            ))
+            entries.append(
+                OutboxEntry(
+                    id=row["id"],
+                    event_type=row["event_type"],
+                    aggregate_type=row["aggregate_type"],
+                    aggregate_id=row["aggregate_id"],
+                    data=row["data"],
+                    metadata=row["extra"],
+                    status=row["status"],
+                    retry_count=row["retry_count"],
+                    max_retries=row["max_retries"],
+                    last_error=row.get("last_error"),
+                    created_at=row["created_at"],
+                    processed_at=row.get("processed_at"),
+                    next_retry_at=row.get("next_retry_at"),
+                )
+            )
         return entries
 
     async def mark_processed(self, entry_id: UUID) -> None:

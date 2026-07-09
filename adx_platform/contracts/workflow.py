@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -24,28 +27,26 @@ class WorkflowInstance(BaseModel):
     definition_id: UUID
     aggregate_id: UUID
     current_state: str
-    data: dict
+    data: dict[str, Any]
 
 
 class StepResult(BaseModel):
     success: bool
-    data: dict = {}
+    data: dict[str, Any] = {}
     error: str | None = None
 
 
 class WorkflowContext(BaseModel):
     instance: WorkflowInstance
     definition: WorkflowDefinition
-    data: dict
+    data: dict[str, Any]
 
 
 class WorkflowStep(ABC):
     step_name: str
 
     @abstractmethod
-    async def execute(self, context: WorkflowContext) -> StepResult:
-        ...
+    async def execute(self, context: WorkflowContext) -> StepResult: ...
 
     @abstractmethod
-    async def compensate(self, context: WorkflowContext) -> None:
-        ...
+    async def compensate(self, context: WorkflowContext) -> None: ...

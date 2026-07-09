@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from adx_platform.contracts.event import DomainEvent
@@ -25,7 +25,7 @@ async def on_organization_deleted(event: DomainEvent) -> None:
     # Future: clean up associated resources
 
 
-def register_handlers(registry: dict[str, list]) -> None:
+def register_handlers(registry: dict[str, list[Any]]) -> None:
     registry["organization.created.v1"] = [on_organization_created]
     registry["organization.updated.v1"] = [on_organization_updated]
     registry["organization.deleted.v1"] = [on_organization_deleted]

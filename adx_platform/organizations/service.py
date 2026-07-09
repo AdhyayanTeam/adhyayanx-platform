@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from adx_platform.events.publisher import Publisher
@@ -16,6 +17,7 @@ from adx_platform.organizations.events import (
     OrganizationDeleted,
     OrganizationUpdated,
 )
+from adx_platform.organizations.ports.organization_repository import OrganizationRepository
 from foundation.exceptions.base import AggregateNotFoundError, ValidationError
 
 if TYPE_CHECKING:
@@ -31,22 +33,31 @@ class OrganizationService:
         self,
         database: Database,
         publisher: Publisher,
+        repository_factory: Callable[[Any], OrganizationRepository] | None = None,
     ) -> None:
         self._db = database
         self._publisher = publisher
+        self._repo_factory = repository_factory
 
-    async def create(self, command: CreateOrganizationCommand) -> dict:
+    def _make_repo(self, session: Any) -> OrganizationRepository:
+        if self._repo_factory is not None:
+            return self._repo_factory(session)
+        from infrastructure.postgres.organization_repository import (
+            PostgresOrganizationRepository,
+        )
+
+        return PostgresOrganizationRepository(session)
+
+    async def create(self, command: CreateOrganizationCommand) -> dict[str, Any]:
         async with self._db.session() as session:
-            from infrastructure.postgres.organization_repository import (
-                PostgresOrganizationRepository,
-            )
-            repo = PostgresOrganizationRepository(session)
+            repo = self._make_repo(session)
 
             if await repo.exists_by_slug(command.slug):
                 raise ValidationError(f"Organization with slug '{command.slug}' already exists")
 
+            org_id = uuid4()
             org = {
-                "id": uuid4(),
+                "id": org_id,
                 "name": command.name,
                 "slug": command.slug,
                 "lifecycle_state": "active",
@@ -59,7 +70,7 @@ class OrganizationService:
             await repo.save(org)
 
             event = OrganizationCreated(
-                aggregate_id=org["id"],
+                aggregate_id=org_id,
                 data={"name": command.name, "slug": command.slug},
                 metadata=command.metadata,
             )
@@ -68,24 +79,18 @@ class OrganizationService:
             logger.info("Organization created: %s (%s)", org["id"], command.slug)
             return org
 
-    async def get(self, organization_id: UUID) -> dict:
+    async def get(self, organization_id: UUID) -> dict[str, Any]:
         async with self._db.session() as session:
-            from infrastructure.postgres.organization_repository import (
-                PostgresOrganizationRepository,
-            )
-            repo = PostgresOrganizationRepository(session)
+            repo = self._make_repo(session)
 
             org = await repo.load(organization_id)
             if org is None:
                 raise AggregateNotFoundError(f"Organization {organization_id} not found")
             return org
 
-    async def update(self, command: UpdateOrganizationCommand) -> dict:
+    async def update(self, command: UpdateOrganizationCommand) -> dict[str, Any]:
         async with self._db.session() as session:
-            from infrastructure.postgres.organization_repository import (
-                PostgresOrganizationRepository,
-            )
-            repo = PostgresOrganizationRepository(session)
+            repo = self._make_repo(session)
 
             org = await repo.load(command.organization_id)
             if org is None:
@@ -112,10 +117,7 @@ class OrganizationService:
 
     async def delete(self, command: DeleteOrganizationCommand) -> None:
         async with self._db.session() as session:
-            from infrastructure.postgres.organization_repository import (
-                PostgresOrganizationRepository,
-            )
-            repo = PostgresOrganizationRepository(session)
+            repo = self._make_repo(session)
 
             org = await repo.load(command.organization_id)
             if org is None:
@@ -131,10 +133,7 @@ class OrganizationService:
 
             logger.info("Organization deleted: %s", command.organization_id)
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict]:
+    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         async with self._db.session() as session:
-            from infrastructure.postgres.organization_repository import (
-                PostgresOrganizationRepository,
-            )
-            repo = PostgresOrganizationRepository(session)
+            repo = self._make_repo(session)
             return await repo.list(skip=skip, limit=limit)

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import Any
 
 from kernel.container import Container
 
@@ -15,18 +16,18 @@ class Lifecycle:
 
     def __init__(self, container: Container) -> None:
         self.container = container
-        self._startup_hooks: list[Callable] = []
-        self._shutdown_hooks: list[Callable] = []
-        self._tasks: list[asyncio.Task] = []
+        self._startup_hooks: list[Callable[[], Awaitable[None]]] = []
+        self._shutdown_hooks: list[Callable[[], Awaitable[None]]] = []
+        self._tasks: list[asyncio.Task[Any]] = []
 
-    def on_startup(self, hook: Callable) -> None:
+    def on_startup(self, hook: Callable[[], Awaitable[None]]) -> None:
         self._startup_hooks.append(hook)
 
-    def on_shutdown(self, hook: Callable) -> None:
+    def on_shutdown(self, hook: Callable[[], Awaitable[None]]) -> None:
         self._shutdown_hooks.append(hook)
 
-    def create_task(self, coro) -> None:
-        task = asyncio.create_task(coro)
+    def create_task(self, coro: Awaitable[Any]) -> None:
+        task: asyncio.Task[Any] = asyncio.create_task(coro)  # type: ignore[arg-type]
         self._tasks.append(task)
 
     async def startup(self) -> None:

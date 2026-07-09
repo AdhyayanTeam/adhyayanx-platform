@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -12,7 +15,7 @@ class BusinessObject(BaseModel, ABC):
     tenant_id: UUID
     lifecycle_state: str = "active"
     version: int = 1
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -21,5 +24,4 @@ class BusinessObject(BaseModel, ABC):
         self.updated_at = datetime.now(UTC)
 
     @abstractmethod
-    def validate_invariants(self) -> bool:
-        ...
+    def validate_invariants(self) -> bool: ...

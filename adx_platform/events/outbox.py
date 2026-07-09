@@ -5,6 +5,7 @@ import contextlib
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 logger = logging.getLogger("adx_platform.outbox")
@@ -16,8 +17,8 @@ class OutboxEntry:
     event_type: str = ""
     aggregate_type: str = ""
     aggregate_id: UUID | None = None
-    data: dict = field(default_factory=dict)
-    metadata: dict = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     status: str = "pending"
     retry_count: int = 0
     max_retries: int = 5
@@ -34,7 +35,7 @@ class OutboxDispatcher:
 
     def __init__(self) -> None:
         self._running = False
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[Any] | None = None
 
     async def start(self) -> None:
         self._running = True

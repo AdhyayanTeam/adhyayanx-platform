@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
-
     from adx_platform.contracts.repository import Repository
     from adx_platform.events.ports.outbox_repository import OutboxEntry
 

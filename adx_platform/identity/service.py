@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from adx_platform.events.publisher import Publisher
@@ -31,17 +31,19 @@ class IdentityService:
         self._db = database
         self._publisher = publisher
 
-    async def create_user(self, command: CreateUserCommand) -> dict:
+    async def create_user(self, command: CreateUserCommand) -> dict[str, Any]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
 
             existing = await repo.load_by_email(command.email)
             if existing is not None:
                 raise ValidationError(f"User with email '{command.email}' already exists")
 
+            user_id = uuid4()
             user = {
-                "id": uuid4(),
+                "id": user_id,
                 "organization_id": command.organization_id,
                 "email": command.email,
                 "name": command.name,
@@ -57,7 +59,7 @@ class IdentityService:
             await repo.save(user)
 
             event = UserCreated(
-                aggregate_id=user["id"],
+                aggregate_id=user_id,
                 data={
                     "email": command.email,
                     "name": command.name,
@@ -70,9 +72,10 @@ class IdentityService:
             logger.info("User created: %s (%s)", user["id"], command.email)
             return user
 
-    async def get(self, user_id: UUID) -> dict:
+    async def get(self, user_id: UUID) -> dict[str, Any]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
 
             user = await repo.load(user_id)
@@ -80,9 +83,10 @@ class IdentityService:
                 raise AggregateNotFoundError(f"User {user_id} not found")
             return user
 
-    async def get_by_email(self, email: str) -> dict:
+    async def get_by_email(self, email: str) -> dict[str, Any]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
 
             user = await repo.load_by_email(email)
@@ -90,9 +94,10 @@ class IdentityService:
                 raise AggregateNotFoundError(f"User with email '{email}' not found")
             return user
 
-    async def deactivate(self, command: DeactivateUserCommand) -> dict:
+    async def deactivate(self, command: DeactivateUserCommand) -> dict[str, Any]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
 
             user = await repo.load(command.user_id)
@@ -115,9 +120,10 @@ class IdentityService:
             logger.info("User deactivated: %s", command.user_id)
             return user
 
-    async def reactivate(self, command: ReactivateUserCommand) -> dict:
+    async def reactivate(self, command: ReactivateUserCommand) -> dict[str, Any]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
 
             user = await repo.load(command.user_id)
@@ -140,8 +146,11 @@ class IdentityService:
             logger.info("User reactivated: %s", command.user_id)
             return user
 
-    async def list(self, organization_id: UUID, skip: int = 0, limit: int = 100) -> list[dict]:
+    async def list(
+        self, organization_id: UUID, skip: int = 0, limit: int = 100
+    ) -> list[dict[str, Any]]:
         async with self._db.session() as session:
             from infrastructure.postgres.identity_repository import PostgresIdentityRepository
+
             repo = PostgresIdentityRepository(session)
             return await repo.list(organization_id, skip=skip, limit=limit)

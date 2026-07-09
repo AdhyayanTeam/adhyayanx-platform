@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
@@ -15,19 +16,21 @@ from adx_platform.identity.schemas import (
     UserResponse,
 )
 from adx_platform.identity.service import IdentityService
+from kernel.container import Container
 
 router = APIRouter(prefix="/users", tags=["identity"])
 
 
 def get_service(request: Request) -> IdentityService:
-    return request.app.state.container.resolve(IdentityService)
+    container: Container = request.app.state.container
+    return container.resolve(IdentityService)
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: CreateUserRequest,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     command = CreateUserCommand(
         organization_id=body.organization_id,
         email=body.email,
@@ -43,7 +46,7 @@ async def create_user(
 async def get_user(
     user_id: UUID,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     return await service.get(user_id)
 
 
@@ -51,7 +54,7 @@ async def get_user(
 async def get_user_by_email(
     email: str,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     return await service.get_by_email(email)
 
 
@@ -59,7 +62,7 @@ async def get_user_by_email(
 async def deactivate_user(
     user_id: UUID,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     command = DeactivateUserCommand(
         organization_id=UUID(int=0),
         user_id=user_id,
@@ -72,7 +75,7 @@ async def deactivate_user(
 async def reactivate_user(
     user_id: UUID,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     command = ReactivateUserCommand(
         organization_id=UUID(int=0),
         user_id=user_id,
@@ -87,6 +90,6 @@ async def list_users(
     skip: int = 0,
     limit: int = 100,
     service: IdentityService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     items = await service.list(organization_id, skip=skip, limit=limit)
     return {"items": items, "total": len(items)}

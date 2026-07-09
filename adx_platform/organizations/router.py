@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
@@ -16,19 +17,21 @@ from adx_platform.organizations.schemas import (
     OrganizationUpdateRequest,
 )
 from adx_platform.organizations.service import OrganizationService
+from kernel.container import Container
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 
 def get_service(request: Request) -> OrganizationService:
-    return request.app.state.container.resolve(OrganizationService)
+    container: Container = request.app.state.container
+    return container.resolve(OrganizationService)
 
 
 @router.post("", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     body: OrganizationCreateRequest,
     service: OrganizationService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     command = CreateOrganizationCommand(
         name=body.name,
         slug=body.slug,
@@ -41,7 +44,7 @@ async def create_organization(
 async def get_organization(
     organization_id: UUID,
     service: OrganizationService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     return await service.get(organization_id)
 
 
@@ -50,7 +53,7 @@ async def update_organization(
     organization_id: UUID,
     body: OrganizationUpdateRequest,
     service: OrganizationService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     command = UpdateOrganizationCommand(
         organization_id=organization_id,
         name=body.name,
@@ -77,6 +80,6 @@ async def list_organizations(
     skip: int = 0,
     limit: int = 100,
     service: OrganizationService = Depends(get_service),
-) -> dict:
+) -> dict[str, Any]:
     items = await service.list(skip=skip, limit=limit)
     return {"items": items, "total": len(items)}
