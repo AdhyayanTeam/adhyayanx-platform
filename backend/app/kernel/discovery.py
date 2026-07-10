@@ -10,12 +10,12 @@ if TYPE_CHECKING:
 
 def discover_blueprints(container: Container) -> list[str]:
     """Discover blueprint packages by scanning the blueprints directory."""
-    import app.blueprints as blueprints
+    import app.modules.blueprints as blueprints
 
     discovered: list[str] = []
     for _, name, is_pkg in pkgutil.iter_modules(blueprints.__path__):
         if is_pkg:
-            module = importlib.import_module(f"app.blueprints.{name}")
+            module = importlib.import_module(f"app.modules.blueprints.{name}")
             if hasattr(module, "register"):
                 module.register(container)
                 discovered.append(name)
