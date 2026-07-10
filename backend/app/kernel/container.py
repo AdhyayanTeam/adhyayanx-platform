@@ -23,7 +23,8 @@ class Container:
             return self._instances[interface]  # type: ignore[no-any-return]
         implementation = self._registry.get(interface)
         if implementation is None:
-            raise KeyError(f"No implementation registered for {interface.__name__}")
+            name = getattr(interface, "__name__", str(interface))
+            raise KeyError(f"No implementation registered for {name}")
         instance = self._build(implementation)
         self._instances[interface] = instance
         return instance  # type: ignore[no-any-return]
@@ -36,18 +37,40 @@ class Container:
         for name, param in params.items():
             if name == "self":
                 continue
-            if param.annotation is not param.empty:
-                try:
-                    kwargs[name] = self.resolve(param.annotation)
-                except KeyError:
-                    # If the parameter has a default, skip it
-                    if param.default is not param.empty:
-                        continue
-                    raise KeyError(
-                        f"Cannot resolve dependency '{name}: {param.annotation.__name__}' "
-                        f"for {implementation.__name__}"
-                    ) from None
+            annotation = param.annotation
+            if annotation is not param.empty:
+                resolved = self._resolve_annotation(annotation)
+                if resolved is not None:
+                    try:
+                        kwargs[name] = self.resolve(resolved)
+                    except KeyError:
+                        if param.default is not param.empty:
+                            continue
+                        name_label = getattr(resolved, "__name__", str(resolved))
+                        raise KeyError(
+                            f"Cannot resolve dependency '{name}: {name_label}' "
+                            f"for {implementation.__name__}"
+                        ) from None
         return implementation(**kwargs)
+
+    def _resolve_annotation(self, annotation: Any) -> Any | None:
+        if not isinstance(annotation, str):
+            return annotation
+        for t in list(self._registry) + list(self._instances):
+            if t.__name__ == annotation:
+                return t
+        if annotation == "Settings":
+            from app.kernel.config.loader import Settings
+            return Settings
+        import re
+        for part in re.split(r"\s*\|\s*", annotation):
+            part = part.strip()
+            if part == "None":
+                continue
+            for t in list(self._registry) + list(self._instances):
+                if hasattr(t, "__name__") and t.__name__ == part:
+                    return t
+        return None
 
     def clear(self) -> None:
         self._registry.clear()

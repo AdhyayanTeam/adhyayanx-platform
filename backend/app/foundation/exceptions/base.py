@@ -10,6 +10,10 @@ class ValidationError(DomainError):
     """Error raised when command validation fails."""
 
 
+class AuthenticationError(DomainError):
+    """Error raised when authentication fails."""
+
+
 class AuthorizationError(DomainError):
     """Error raised when the actor lacks permission."""
 

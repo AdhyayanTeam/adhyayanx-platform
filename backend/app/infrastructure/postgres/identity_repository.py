@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.postgres.tables import UserTable
@@ -11,8 +12,6 @@ from app.modules.platform.identity.ports.identity_repository import IdentityRepo
 
 
 class PostgresIdentityRepository(IdentityRepository):
-    """PostgreSQL implementation of IdentityRepository."""
-
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -34,6 +33,8 @@ class PostgresIdentityRepository(IdentityRepository):
         if existing:
             existing.email = user.get("email", existing.email)
             existing.name = user.get("name", existing.name)
+            existing.password_hash = user.get("password_hash", existing.password_hash)
+            existing.is_verified = user.get("is_verified", existing.is_verified)
             existing.lifecycle_state = user.get("lifecycle_state", existing.lifecycle_state)
             existing.auth_provider = user.get("auth_provider", existing.auth_provider)
             existing.auth_provider_id = user.get("auth_provider_id", existing.auth_provider_id)
@@ -46,6 +47,8 @@ class PostgresIdentityRepository(IdentityRepository):
                 organization_id=user["organization_id"],
                 email=user["email"],
                 name=user["name"],
+                password_hash=user.get("password_hash"),
+                is_verified=user.get("is_verified", False),
                 lifecycle_state=user.get("lifecycle_state", "active"),
                 auth_provider=user.get("auth_provider", "email"),
                 auth_provider_id=user.get("auth_provider_id"),
@@ -55,6 +58,7 @@ class PostgresIdentityRepository(IdentityRepository):
                 updated_at=user.get("updated_at"),
             )
             self._session.add(row)
+            await self._session.flush()
 
     async def delete(self, id: UUID) -> None:
         result = await self._session.execute(select(UserTable).where(UserTable.id == id))
@@ -78,12 +82,34 @@ class PostgresIdentityRepository(IdentityRepository):
         )
         return [self._to_dict(row) for row in result.scalars().all()]
 
+    async def update_password(self, id: UUID, password_hash: str) -> None:
+        await self._session.execute(
+            update(UserTable)
+            .where(UserTable.id == id)
+            .values(
+                password_hash=password_hash,
+                updated_at=datetime.now(UTC),
+            )
+        )
+
+    async def set_verified(self, id: UUID) -> None:
+        await self._session.execute(
+            update(UserTable)
+            .where(UserTable.id == id)
+            .values(
+                is_verified=True,
+                updated_at=datetime.now(UTC),
+            )
+        )
+
     def _to_dict(self, row: UserTable) -> dict[str, Any]:
         return {
             "id": row.id,
             "organization_id": row.organization_id,
             "email": row.email,
             "name": row.name,
+            "password_hash": row.password_hash,
+            "is_verified": row.is_verified,
             "lifecycle_state": row.lifecycle_state,
             "auth_provider": row.auth_provider,
             "auth_provider_id": row.auth_provider_id,

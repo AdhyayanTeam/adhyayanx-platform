@@ -32,11 +32,19 @@ class Bootstrap:
         self.container.register_instance(Database, db)
 
     def _wire_domains(self) -> None:
+        from app.modules.platform.identity.auth_service import AuthService
+        from app.modules.platform.identity.navigation_service import NavigationService
+        from app.modules.platform.identity.password_policy import PasswordPolicy
         from app.modules.platform.identity.service import IdentityService
+        from app.modules.platform.identity.token_service import TokenService
         from app.modules.platform.organizations.service import OrganizationService
 
-        self.container.register(OrganizationService, OrganizationService)
         self.container.register(IdentityService, IdentityService)
+        self.container.register(OrganizationService, OrganizationService)
+        self.container.register(AuthService, AuthService)
+        self.container.register(TokenService, TokenService)
+        self.container.register(NavigationService, NavigationService)
+        self.container.register(PasswordPolicy, PasswordPolicy)
 
     def _wire_event_system(self) -> None:
         from app.modules.platform.events.bus import EventBus

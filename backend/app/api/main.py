@@ -53,7 +53,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     bootstrap.configure()
     app.state.container = bootstrap.container
 
+    # Wire email service into AuthService
+    email_service = _build_email_service(settings)
+    from app.modules.platform.identity.auth_service import AuthService
+    auth_service = bootstrap.container.resolve(AuthService)
+    auth_service.set_email_service(email_service)
+
     return app
+
+
+def _build_email_service(settings: Settings) -> object:
+    provider = settings.email_provider
+    if provider == "resend":
+        from app.modules.platform.notifications.resend_provider import (
+            ResendEmailProvider,
+        )
+        return ResendEmailProvider(
+            api_key=settings.resend_api_key,
+            from_address=settings.email_from_address,
+        )
+    from app.modules.platform.notifications.console_provider import (
+        ConsoleEmailProvider,
+    )
+    return ConsoleEmailProvider()
 
 
 app = create_app()

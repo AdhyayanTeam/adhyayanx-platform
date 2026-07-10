@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -10,6 +13,14 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.kernel.config.loader import Settings
+
+
+def _json_default(obj: object) -> str:
+    if isinstance(obj, UUID):
+        return str(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
 class Database:
@@ -21,6 +32,7 @@ class Database:
             echo=settings.debug,
             pool_size=5,
             max_overflow=10,
+            json_serializer=lambda v: json.dumps(v, default=_json_default),
         )
         self.session_factory = async_sessionmaker(
             self.engine,

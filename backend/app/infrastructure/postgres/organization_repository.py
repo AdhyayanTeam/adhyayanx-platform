@@ -54,6 +54,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 updated_at=organization.get("updated_at"),
             )
             self._session.add(row)
+            await self._session.flush()
 
     async def delete(self, id: UUID) -> None:
         result = await self._session.execute(

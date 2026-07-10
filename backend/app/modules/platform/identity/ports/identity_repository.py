@@ -25,3 +25,9 @@ class IdentityRepository(ABC):
     async def list(
         self, organization_id: UUID, skip: int = 0, limit: int = 100
     ) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    async def update_password(self, id: UUID, password_hash: str) -> None: ...
+
+    @abstractmethod
+    async def set_verified(self, id: UUID) -> None: ...
