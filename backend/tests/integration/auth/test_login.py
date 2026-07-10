@@ -83,3 +83,30 @@ class TestLogin:
             "password": "WrongPassword1",
         })
         assert resp.status_code == 422
+
+    async def test_login_fails_for_deactivated_user(
+        self, client: httpx.AsyncClient, repos: dict[str, Any],
+    ) -> None:
+        await client.post(f"{PREFIX}/auth/signup", json={
+            "organization_name": "Deactivated Co",
+            "blueprint_code": "clinic",
+            "owner_name": "Deact User",
+            "email": "deactivated@test.com",
+            "password": "SecurePass1",
+        })
+        token_repo = repos["token"]
+        token = list(token_repo._store.values())[0]
+        user_repo = repos["user"]
+        user = await user_repo.load_by_email("deactivated@test.com")
+        assert user is not None
+        await user_repo.set_verified(user["id"])
+        await token_repo.mark_used(token["id"])
+
+        user["lifecycle_state"] = "deactivated"
+        await user_repo.save(user)
+
+        resp = await client.post(f"{PREFIX}/auth/login", json={
+            "email": "deactivated@test.com",
+            "password": "SecurePass1",
+        })
+        assert resp.status_code == 422

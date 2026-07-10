@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
@@ -34,6 +33,7 @@ class TestVerifyEmail:
         assert stored["is_verified"] is False
 
         raw_token = str(uuid4())
+        import hashlib
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         token_repo = repos["token"]
         await token_repo.create({
@@ -66,5 +66,69 @@ class TestVerifyEmail:
     ) -> None:
         resp = await client.post(f"{PREFIX}/auth/verify-email", json={
             "token": "bogus-token",
+        })
+        assert resp.status_code == 422
+
+    async def test_verify_email_expired_token(
+        self, client: httpx.AsyncClient, repos: dict[str, Any],
+    ) -> None:
+        signup = await client.post(f"{PREFIX}/auth/signup", json={
+            "organization_name": "Expired Token Co",
+            "blueprint_code": "clinic",
+            "owner_name": "Expired User",
+            "email": "expired@test.com",
+            "password": "SecurePass1",
+        })
+        assert signup.status_code == 201
+        user_id = UUID(signup.json()["user"]["id"])
+        raw_token = str(uuid4())
+
+        import hashlib
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        token_repo = repos["token"]
+        await token_repo.create({
+            "id": uuid4(),
+            "user_id": user_id,
+            "token_hash": token_hash,
+            "purpose": "VERIFY_EMAIL",
+            "expires_at": datetime.now(UTC) - timedelta(hours=1),
+            "created_at": datetime.now(UTC) - timedelta(hours=2),
+        })
+
+        resp = await client.post(f"{PREFIX}/auth/verify-email", json={
+            "token": raw_token,
+        })
+        assert resp.status_code == 422
+
+    async def test_verify_email_used_token(
+        self, client: httpx.AsyncClient, repos: dict[str, Any],
+    ) -> None:
+        signup = await client.post(f"{PREFIX}/auth/signup", json={
+            "organization_name": "Used Token Co",
+            "blueprint_code": "salon",
+            "owner_name": "Used User",
+            "email": "used@test.com",
+            "password": "SecurePass1",
+        })
+        assert signup.status_code == 201
+        user_id = UUID(signup.json()["user"]["id"])
+        raw_token = str(uuid4())
+
+        import hashlib
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        token_repo = repos["token"]
+        token_id = uuid4()
+        await token_repo.create({
+            "id": token_id,
+            "user_id": user_id,
+            "token_hash": token_hash,
+            "purpose": "VERIFY_EMAIL",
+            "expires_at": datetime.now(UTC) + timedelta(hours=24),
+            "created_at": datetime.now(UTC),
+        })
+        await token_repo.mark_used(token_id)
+
+        resp = await client.post(f"{PREFIX}/auth/verify-email", json={
+            "token": raw_token,
         })
         assert resp.status_code == 422

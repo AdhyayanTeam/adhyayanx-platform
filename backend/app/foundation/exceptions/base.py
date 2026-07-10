@@ -22,6 +22,10 @@ class AggregateNotFoundError(DomainError):
     """Error raised when an aggregate cannot be found."""
 
 
+class ConflictError(DomainError):
+    """Error raised when the request conflicts with the current state of the resource."""
+
+
 class ConcurrentModificationError(DomainError):
     """Error raised when optimistic lock check fails."""
 

@@ -10,6 +10,7 @@ from app.foundation.exceptions.base import (
     AggregateNotFoundError,
     AuthorizationError,
     ConcurrentModificationError,
+    ConflictError,
     ValidationError,
 )
 
@@ -20,6 +21,7 @@ ERROR_MAP: dict[type[ADXError], tuple[int, str]] = {
     ValidationError: (422, "UNPROCESSABLE_ENTITY"),
     AuthorizationError: (403, "FORBIDDEN"),
     AggregateNotFoundError: (404, "NOT_FOUND"),
+    ConflictError: (409, "CONFLICT"),
     ConcurrentModificationError: (409, "CONFLICT"),
 }
 

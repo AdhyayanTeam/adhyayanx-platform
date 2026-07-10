@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from app.foundation.exceptions.base import ValidationError
+from app.foundation.exceptions.base import ConflictError, ValidationError
 from app.modules.platform.identity.commands import (
     LoginCommand,
     ResetPasswordCommand,
@@ -113,11 +113,17 @@ class AuthService:
 
             existing_user = await user_repo.load_by_email(command.email)
             if existing_user is not None:
-                raise ValidationError(f"User with email '{command.email}' already exists")
+                raise ConflictError(f"User with email '{command.email}' already exists")
 
             slug = _slugify(command.organization_name)
-            if await org_repo.exists_by_slug(slug):
-                raise ValidationError(f"Organization with slug '{slug}' already exists")
+            base_slug = slug
+            counter = 2
+            while await org_repo.exists_by_slug(slug):
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+                if counter > 100:
+                    slug = f"{base_slug}-{secrets.token_hex(3)}"
+                    break
 
             org_id = uuid4()
             org = {

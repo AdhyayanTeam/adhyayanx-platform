@@ -73,14 +73,13 @@ class TestSignup:
         token = list(token_repo._store.values())[0]
         assert token["purpose"] == "VERIFY_EMAIL"
 
-        received = app.state.received_events if hasattr(app.state, "received_events") else []
-        if received:
-            event_types = [e.event_type for e in received]
-            assert "organization.created.v1" in event_types
-            assert "user.created.v1" in event_types
-            assert "membership.created.v1" in event_types
-            assert "organization_subscription.created.v1" in event_types
-            assert "email_verification_token.created.v1" in event_types
+        publisher = app.state.publisher
+        event_types = [e.event_type for e in publisher.published]
+        assert "organization.created.v1" in event_types
+        assert "user.created.v1" in event_types
+        assert "membership.created.v1" in event_types
+        assert "organization_subscription.created.v1" in event_types
+        assert "email_verification_token.created.v1" in event_types
 
     async def test_signup_rejects_duplicate_email(
         self, client: httpx.AsyncClient,
@@ -98,7 +97,34 @@ class TestSignup:
         payload["organization_name"] = "Second Org"
         payload["owner_name"] = "Bob"
         resp2 = await client.post(f"{PREFIX}/auth/signup", json=payload)
-        assert resp2.status_code == 422
+        assert resp2.status_code == 409
+
+    async def test_signup_generates_unique_slug(
+        self, client: httpx.AsyncClient,
+    ) -> None:
+        resp1 = await client.post(f"{PREFIX}/auth/signup", json={
+            "organization_name": "Same Name Org",
+            "blueprint_code": "clinic",
+            "owner_name": "Alice",
+            "email": "alice2@test.com",
+            "password": "SecurePass1",
+        })
+        assert resp1.status_code == 201
+        slug1 = resp1.json()["organization"]["slug"]
+
+        resp2 = await client.post(f"{PREFIX}/auth/signup", json={
+            "organization_name": "Same Name Org",
+            "blueprint_code": "clinic",
+            "owner_name": "Bob",
+            "email": "bob@test.com",
+            "password": "SecurePass1",
+        })
+        assert resp2.status_code == 201
+        slug2 = resp2.json()["organization"]["slug"]
+
+        assert slug1 == "same-name-org"
+        assert slug2 != slug1
+        assert slug2.startswith("same-name-org-")
 
     async def test_signup_rejects_weak_password(
         self, client: httpx.AsyncClient,

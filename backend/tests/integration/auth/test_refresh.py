@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -54,3 +55,28 @@ class TestRefresh:
     ) -> None:
         resp = await client.post(f"{PREFIX}/auth/refresh")
         assert resp.status_code == 401
+
+    async def test_refresh_fails_for_revoked_session(
+        self, client: httpx.AsyncClient, repos: dict[str, Any],
+    ) -> None:
+        await self._setup_logged_in_user(client, repos)
+
+        session_repo = repos["session"]
+        session = list(session_repo._store.values())[0]
+        await session_repo.revoke(session["id"])
+
+        resp = await client.post(f"{PREFIX}/auth/refresh")
+        assert resp.status_code == 422
+
+    async def test_refresh_fails_for_expired_session(
+        self, client: httpx.AsyncClient, repos: dict[str, Any],
+    ) -> None:
+        await self._setup_logged_in_user(client, repos)
+
+        session_repo = repos["session"]
+        session = list(session_repo._store.values())[0]
+        session["expires_at"] = datetime.now(UTC) - timedelta(hours=1)
+        session_repo._store[session["id"]] = session
+
+        resp = await client.post(f"{PREFIX}/auth/refresh")
+        assert resp.status_code == 422
