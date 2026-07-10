@@ -18,11 +18,11 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from adx_platform.contracts.event import DomainEvent
-from adx_platform.events.bus import EventBus
-from adx_platform.events.publisher import Publisher
-from adx_platform.organizations.ports.organization_repository import OrganizationRepository
-from kernel.config.loader import Settings
+from app.kernel.config.loader import Settings
+from app.modules.platform.contracts.event import DomainEvent
+from app.modules.platform.events.bus import EventBus
+from app.modules.platform.events.publisher import Publisher
+from app.modules.platform.organizations.ports.organization_repository import OrganizationRepository
 
 # ---------------------------------------------------------------------------
 # Test doubles
@@ -108,9 +108,9 @@ class RecordingPublisher(Publisher):
 @pytest.fixture
 def test_app() -> FastAPI:
     """Build a FastAPI app wired with test doubles."""
-    from adx_platform.organizations.service import OrganizationService
-    from api.main import create_app
-    from infrastructure.postgres.database import Database
+    from app.api.main import create_app
+    from app.infrastructure.postgres.database import Database
+    from app.modules.platform.organizations.service import OrganizationService
 
     app = create_app(Settings())
     container = app.state.container

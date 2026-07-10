@@ -59,4 +59,4 @@ requires = ["setuptools>=75.0.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["api*", "kernel*", "adx_platform*", "usecases*", "blueprints*", "dhara*", "infrastructure*", "foundation*"]
+include = ["app*", "tests*"]
