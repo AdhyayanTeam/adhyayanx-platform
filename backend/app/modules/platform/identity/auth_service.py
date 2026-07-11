@@ -149,6 +149,10 @@ class AuthService:
             timings.append(f"create_org={self._ms(t0)}")
 
             t0 = perf_counter()
+            await session.flush()
+            timings.append(f"flush_org={self._ms(t0)}")
+
+            t0 = perf_counter()
             owner_role_id = uuid4()
             await role_repo.create(
                 {
@@ -184,6 +188,10 @@ class AuthService:
             }
             await user_repo.create(user)
             timings.append(f"create_user={self._ms(t0)}")
+
+            t0 = perf_counter()
+            await session.flush()
+            timings.append(f"flush={self._ms(t0)}")
 
             t0 = perf_counter()
             membership_id = uuid4()

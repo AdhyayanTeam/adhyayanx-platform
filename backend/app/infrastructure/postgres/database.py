@@ -55,8 +55,9 @@ class Database:
         self._install_statement_counter()
 
     def _install_statement_counter(self) -> None:
-        event.listen(self.engine, "before_cursor_execute", self._on_before_execute)
-        event.listen(self.engine, "after_cursor_execute", self._on_after_execute)
+        sync_engine = self.engine.sync_engine
+        event.listen(sync_engine, "before_cursor_execute", self._on_before_execute)
+        event.listen(sync_engine, "after_cursor_execute", self._on_after_execute)
 
     @staticmethod
     def _on_before_execute(_conn, _cursor, _statement, _parameters, _context, _executemany):
@@ -67,8 +68,9 @@ class Database:
         _sql_count.set(_sql_count.get() + 1)
 
     async def close(self) -> None:
-        event.remove(self.engine, "before_cursor_execute", self._on_before_execute)
-        event.remove(self.engine, "after_cursor_execute", self._on_after_execute)
+        sync_engine = self.engine.sync_engine
+        event.remove(sync_engine, "before_cursor_execute", self._on_before_execute)
+        event.remove(sync_engine, "after_cursor_execute", self._on_after_execute)
         await self.engine.dispose()
 
     @asynccontextmanager
