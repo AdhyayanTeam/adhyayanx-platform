@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request
 from sqlalchemy import text
 
 from app.infrastructure.postgres.database import Database
-from app.kernel.config.loader import Settings
 
 router = APIRouter(tags=["health"])
 
@@ -17,8 +16,7 @@ async def liveness() -> dict[str, str]:
 @router.get("/health/ready")
 async def readiness(request: Request) -> dict[str, str]:
     container = request.app.state.container
-    settings = container.resolve(Settings)
-    db = Database(settings)
+    db = container.resolve(Database)
     try:
         async with db.session() as session:
             await session.execute(text("SELECT 1"))

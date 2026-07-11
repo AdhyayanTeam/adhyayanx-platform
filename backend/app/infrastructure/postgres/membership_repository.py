@@ -23,7 +23,6 @@ class PostgresMembershipRepository(MembershipRepository):
             created_at=membership.get("created_at"),
         )
         self._session.add(row)
-        await self._session.flush()
 
     async def load_by_user_and_org(
         self, user_id: UUID, organization_id: UUID

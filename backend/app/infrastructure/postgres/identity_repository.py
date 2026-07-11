@@ -60,6 +60,24 @@ class PostgresIdentityRepository(IdentityRepository):
             self._session.add(row)
             await self._session.flush()
 
+    async def create(self, user: dict[str, Any]) -> None:
+        row = UserTable(
+            id=user["id"],
+            organization_id=user["organization_id"],
+            email=user["email"],
+            name=user["name"],
+            password_hash=user.get("password_hash"),
+            is_verified=user.get("is_verified", False),
+            lifecycle_state=user.get("lifecycle_state", "active"),
+            auth_provider=user.get("auth_provider", "email"),
+            auth_provider_id=user.get("auth_provider_id"),
+            version=user.get("version", 1),
+            extra=user.get("metadata", {}),
+            created_at=user.get("created_at"),
+            updated_at=user.get("updated_at"),
+        )
+        self._session.add(row)
+
     async def delete(self, id: UUID) -> None:
         result = await self._session.execute(select(UserTable).where(UserTable.id == id))
         row = result.scalar_one_or_none()

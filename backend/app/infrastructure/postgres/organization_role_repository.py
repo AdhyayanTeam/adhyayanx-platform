@@ -32,7 +32,6 @@ class PostgresOrganizationRoleRepository(OrganizationRoleRepository):
             created_at=role.get("created_at"),
         )
         self._session.add(row)
-        await self._session.flush()
 
     async def load_by_name_and_org(self, name: str, organization_id: UUID) -> dict[str, Any] | None:
         result = await self._session.execute(

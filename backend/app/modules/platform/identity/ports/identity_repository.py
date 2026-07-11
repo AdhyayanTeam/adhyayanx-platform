@@ -13,6 +13,9 @@ class IdentityRepository(ABC):
     async def load_by_email(self, email: str) -> dict[str, Any] | None: ...
 
     @abstractmethod
+    async def create(self, user: dict[str, Any]) -> None: ...
+
+    @abstractmethod
     async def save(self, user: dict[str, Any]) -> None: ...
 
     @abstractmethod

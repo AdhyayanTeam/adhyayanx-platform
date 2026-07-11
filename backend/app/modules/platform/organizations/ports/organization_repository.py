@@ -13,6 +13,9 @@ class OrganizationRepository(ABC):
     async def load_by_slug(self, slug: str) -> dict[str, Any] | None: ...
 
     @abstractmethod
+    async def create(self, organization: dict[str, Any]) -> None: ...
+
+    @abstractmethod
     async def save(self, organization: dict[str, Any]) -> None: ...
 
     @abstractmethod

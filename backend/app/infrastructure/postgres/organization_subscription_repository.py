@@ -27,7 +27,6 @@ class PostgresOrganizationSubscriptionRepository(OrganizationSubscriptionReposit
             created_at=subscription.get("created_at"),
         )
         self._session.add(row)
-        await self._session.flush()
 
     async def load_active_by_org(self, organization_id: UUID) -> list[dict[str, Any]]:
         result = await self._session.execute(

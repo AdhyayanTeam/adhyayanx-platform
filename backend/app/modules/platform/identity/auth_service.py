@@ -5,10 +5,12 @@ import re
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from app.foundation.exceptions.base import ConflictError, ValidationError
+from app.infrastructure.postgres.database import get_sql_count
 from app.modules.platform.identity.commands import (
     LoginCommand,
     ResetPasswordCommand,
@@ -72,7 +74,6 @@ def _default_repo_factory(session: Any) -> dict[str, Any]:
 
 
 class AuthService:
-
     def __init__(
         self,
         database: Database,
@@ -99,8 +100,17 @@ class AuthService:
     def set_email_service(self, service: Any) -> None:
         self._email_service = service
 
+    @staticmethod
+    def _ms(start: float) -> str:
+        return f"{(perf_counter() - start) * 1000:.1f}ms"
+
     async def signup(self, command: SignupCommand) -> dict[str, Any]:
+        timings: list[str] = []
+        t_total = perf_counter()
+
+        t0 = perf_counter()
         self._password_policy.validate(command.password, context=command.email)
+        timings.append(f"password_validate={self._ms(t0)}")
 
         async with self._db.session() as session:
             repos = self._make_repos(session)
@@ -111,20 +121,19 @@ class AuthService:
             sub_repo = repos["sub"]
             token_repo = repos["token"]
 
+            t0 = perf_counter()
             existing_user = await user_repo.load_by_email(command.email)
             if existing_user is not None:
                 raise ConflictError(f"User with email '{command.email}' already exists")
+            timings.append(f"check_email={self._ms(t0)}")
 
+            t0 = perf_counter()
             slug = _slugify(command.organization_name)
-            base_slug = slug
-            counter = 2
-            while await org_repo.exists_by_slug(slug):
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-                if counter > 100:
-                    slug = f"{base_slug}-{secrets.token_hex(3)}"
-                    break
+            if await org_repo.exists_by_slug(slug):
+                slug = f"{slug}-{secrets.token_hex(3)}"
+            timings.append(f"slug_generate={self._ms(t0)}")
 
+            t0 = perf_counter()
             org_id = uuid4()
             org = {
                 "id": org_id,
@@ -136,19 +145,28 @@ class AuthService:
                 "created_at": datetime.now(UTC),
                 "updated_at": datetime.now(UTC),
             }
-            await org_repo.save(org)
+            await org_repo.create(org)
+            timings.append(f"create_org={self._ms(t0)}")
 
+            t0 = perf_counter()
             owner_role_id = uuid4()
-            await role_repo.create({
-                "id": owner_role_id,
-                "organization_id": org_id,
-                "name": "owner",
-                "permissions": {"*": True},
-                "created_at": datetime.now(UTC),
-            })
+            await role_repo.create(
+                {
+                    "id": owner_role_id,
+                    "organization_id": org_id,
+                    "name": "owner",
+                    "permissions": {"*": True},
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            timings.append(f"create_role={self._ms(t0)}")
 
+            t0 = perf_counter()
             user_id = uuid4()
             password_hash = self._password_policy.hash_password(command.password)
+            timings.append(f"hash_password={self._ms(t0)}")
+
+            t0 = perf_counter()
             user = {
                 "id": user_id,
                 "organization_id": org_id,
@@ -164,90 +182,135 @@ class AuthService:
                 "created_at": datetime.now(UTC),
                 "updated_at": datetime.now(UTC),
             }
-            await user_repo.save(user)
+            await user_repo.create(user)
+            timings.append(f"create_user={self._ms(t0)}")
 
+            t0 = perf_counter()
             membership_id = uuid4()
-            await membership_repo.create({
-                "id": membership_id,
-                "user_id": user_id,
-                "organization_id": org_id,
-                "role_id": owner_role_id,
-                "created_at": datetime.now(UTC),
-            })
+            await membership_repo.create(
+                {
+                    "id": membership_id,
+                    "user_id": user_id,
+                    "organization_id": org_id,
+                    "role_id": owner_role_id,
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            timings.append(f"create_membership={self._ms(t0)}")
 
+            t0 = perf_counter()
             sub_id = uuid4()
-            await sub_repo.create({
-                "id": sub_id,
-                "organization_id": org_id,
-                "blueprint_code": command.blueprint_code,
-                "status": "active",
-                "starts_at": datetime.now(UTC),
-                "ends_at": None,
-                "created_at": datetime.now(UTC),
-            })
+            await sub_repo.create(
+                {
+                    "id": sub_id,
+                    "organization_id": org_id,
+                    "blueprint_code": command.blueprint_code,
+                    "status": "active",
+                    "starts_at": datetime.now(UTC),
+                    "ends_at": None,
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            timings.append(f"create_subscription={self._ms(t0)}")
 
+            t0 = perf_counter()
             verification_raw = secrets.token_urlsafe(32)
             verification_hash = self._token_service.hash_refresh_token(verification_raw)
             token_row_id = uuid4()
-            await token_repo.create({
-                "id": token_row_id,
-                "user_id": user_id,
-                "token_hash": verification_hash,
-                "purpose": "VERIFY_EMAIL",
-                "expires_at": datetime.now(UTC) + timedelta(hours=24),
-                "created_at": datetime.now(UTC),
-            })
+            await token_repo.create(
+                {
+                    "id": token_row_id,
+                    "user_id": user_id,
+                    "token_hash": verification_hash,
+                    "purpose": "VERIFY_EMAIL",
+                    "expires_at": datetime.now(UTC) + timedelta(hours=24),
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            timings.append(f"create_token={self._ms(t0)}")
 
-            await self._publisher.publish(OrganizationCreated(
-                aggregate_id=org_id,
-                data={"name": command.organization_name, "slug": slug},
-            ), session)
-            await self._publisher.publish(UserCreated(
-                aggregate_id=user_id,
-                data={
-                    "email": command.email,
-                    "name": command.owner_name,
-                    "organization_id": str(org_id),
-                },
-            ), session)
-            await self._publisher.publish(MembershipCreated(
-                aggregate_id=membership_id,
-                data={
-                    "user_id": str(user_id),
-                    "organization_id": str(org_id),
-                    "role": "owner",
-                },
-            ), session)
-            await self._publisher.publish(OrganizationSubscriptionCreated(
-                aggregate_id=sub_id,
-                data={
-                    "organization_id": str(org_id),
-                    "blueprint_code": command.blueprint_code,
-                },
-            ), session)
-            await self._publisher.publish(EmailVerificationTokenCreated(
-                aggregate_id=token_row_id,
-                data={"user_id": str(user_id), "purpose": "VERIFY_EMAIL"},
-            ), session)
+            t0 = perf_counter()
+            await self._publisher.publish(
+                OrganizationCreated(
+                    aggregate_id=org_id,
+                    data={"name": command.organization_name, "slug": slug},
+                ),
+                session,
+            )
+            await self._publisher.publish(
+                UserCreated(
+                    aggregate_id=user_id,
+                    data={
+                        "email": command.email,
+                        "name": command.owner_name,
+                        "organization_id": str(org_id),
+                    },
+                ),
+                session,
+            )
+            await self._publisher.publish(
+                MembershipCreated(
+                    aggregate_id=membership_id,
+                    data={
+                        "user_id": str(user_id),
+                        "organization_id": str(org_id),
+                        "role": "owner",
+                    },
+                ),
+                session,
+            )
+            await self._publisher.publish(
+                OrganizationSubscriptionCreated(
+                    aggregate_id=sub_id,
+                    data={
+                        "organization_id": str(org_id),
+                        "blueprint_code": command.blueprint_code,
+                    },
+                ),
+                session,
+            )
+            await self._publisher.publish(
+                EmailVerificationTokenCreated(
+                    aggregate_id=token_row_id,
+                    data={"user_id": str(user_id), "purpose": "VERIFY_EMAIL"},
+                ),
+                session,
+            )
+            timings.append(f"publish_events={self._ms(t0)}")
 
-            logger.info("Signup complete: org=%s user=%s", org_id, user_id)
+            t0 = perf_counter()
+            db_round_trips = get_sql_count()
+        # session commits here
+        timings.append(f"commit={self._ms(t0)}")
 
+        t0 = perf_counter()
         email_sent = True
         if self._email_service is not None:
             try:
-                await self._email_service.send(EmailMessage(
-                    template="verify-email",
-                    to=command.email,
-                    subject="Verify your email",
-                    context={
-                        "name": command.owner_name,
-                        "organization": command.organization_name,
-                        "verification_url": f"/auth/verify-email?token={verification_raw}",
-                    },
-                ))
+                await self._email_service.send(
+                    EmailMessage(
+                        template="verify-email",
+                        to=command.email,
+                        subject="Verify your email",
+                        context={
+                            "name": command.owner_name,
+                            "organization": command.organization_name,
+                            "verification_url": f"/auth/verify-email?token={verification_raw}",
+                        },
+                    )
+                )
             except Exception:
                 logger.exception("Failed to send verification email to %s", command.email)
                 email_sent = False
+        timings.append(f"send_email={self._ms(t0)}")
+
+        total_ms = self._ms(t_total)
+        logger.info(
+            "signup.profile db_round_trips=%d %s TOTAL=%s",
+            db_round_trips,
+            " ".join(timings),
+            total_ms,
+        )
 
         return {
             "organization": org,
@@ -258,12 +321,19 @@ class AuthService:
         }
 
     async def verify_email(self, command: VerifyEmailCommand) -> dict[str, Any]:
+        timings: list[str] = []
+        t_total = perf_counter()
+
+        t0 = perf_counter()
+        token_hash = self._token_service.hash_refresh_token(command.token)
+        timings.append(f"hash_token={self._ms(t0)}")
+
         async with self._db.session() as session:
             repos = self._make_repos(session)
             user_repo = repos["user"]
             token_repo = repos["token"]
 
-            token_hash = self._token_service.hash_refresh_token(command.token)
+            t0 = perf_counter()
             token = await token_repo.load_by_token_hash(token_hash)
             if token is None:
                 raise ValidationError("Invalid verification token")
@@ -273,19 +343,42 @@ class AuthService:
                 raise ValidationError("Verification token has expired")
             if token["purpose"] != "VERIFY_EMAIL":
                 raise ValidationError("Invalid token purpose")
+            timings.append(f"load_token={self._ms(t0)}")
 
+            t0 = perf_counter()
             await token_repo.mark_used(token["id"])
             await user_repo.set_verified(token["user_id"])
+            timings.append(f"mark_verified={self._ms(t0)}")
 
-            await self._publisher.publish(EmailVerified(
-                aggregate_id=token["user_id"],
-                data={"purpose": "VERIFY_EMAIL"},
-            ), session)
+            t0 = perf_counter()
+            await self._publisher.publish(
+                EmailVerified(
+                    aggregate_id=token["user_id"],
+                    data={"purpose": "VERIFY_EMAIL"},
+                ),
+                session,
+            )
+            timings.append(f"publish_events={self._ms(t0)}")
 
-            logger.info("Email verified: user=%s", token["user_id"])
-            return {"verified": True, "message": "Email verified successfully"}
+            t0 = perf_counter()
+            db_round_trips = get_sql_count()
+        # session commits here
+        timings.append(f"commit={self._ms(t0)}")
+
+        total_ms = self._ms(t_total)
+        logger.info(
+            "verify_email.profile db_round_trips=%d %s TOTAL=%s",
+            db_round_trips,
+            " ".join(timings),
+            total_ms,
+        )
+        return {"verified": True, "message": "Email verified successfully"}
 
     async def login(self, command: LoginCommand) -> dict[str, Any]:
+        timings: list[str] = []
+        t_total = perf_counter()
+
+        t0 = perf_counter()
         async with self._db.session() as session:
             repos = self._make_repos(session)
             user_repo = repos["user"]
@@ -294,79 +387,125 @@ class AuthService:
             role_repo = repos["role"]
             sub_repo = repos["sub"]
             session_repo = repos["session"]
+            timings.append(f"setup={self._ms(t0)}")
 
+            t0 = perf_counter()
             user = await user_repo.load_by_email(command.email)
             if user is None:
                 raise ValidationError("Invalid email or password")
             if user["password_hash"] is None:
                 raise ValidationError("This account uses a different authentication method")
+            timings.append(f"load_user={self._ms(t0)}")
+
+            t0 = perf_counter()
             if not self._password_policy.verify_password(user["password_hash"], command.password):
                 raise ValidationError("Invalid email or password")
+            timings.append(f"verify_password={self._ms(t0)}")
+
             if not user["is_verified"]:
                 raise ValidationError("Email not verified. Please check your inbox.")
             if user["lifecycle_state"] != "active":
                 raise ValidationError("Account is inactive")
 
+            t0 = perf_counter()
             org = await org_repo.load(user["organization_id"])
             if org is None:
                 raise ValidationError("Organization not found")
+            timings.append(f"load_org={self._ms(t0)}")
 
+            t0 = perf_counter()
             memberships = await membership_repo.list_for_user(user["id"])
             roles: list[str] = []
             for ms in memberships:
                 role = await role_repo.load(ms["role_id"])
                 if role:
                     roles.append(role["name"])
+            timings.append(f"load_roles={self._ms(t0)}")
 
+            t0 = perf_counter()
             subscriptions = await sub_repo.load_active_by_org(org["id"])
             blueprint_codes = [s["blueprint_code"] for s in subscriptions]
             landing_url = self._navigation_service.resolve_landing(blueprint_codes)
+            timings.append(f"resolve_landing={self._ms(t0)}")
 
+            t0 = perf_counter()
             refresh_raw, refresh_hash = self._token_service.create_refresh_token_pair()
             session_id = uuid4()
-            await session_repo.create({
-                "id": session_id,
-                "user_id": user["id"],
-                "refresh_token_hash": refresh_hash,
-                "ip_address": command.ip_address,
-                "user_agent": command.user_agent,
-                "device_name": command.device_name,
-                "last_seen_at": datetime.now(UTC),
-                "expires_at": datetime.now(UTC) + timedelta(
-                    days=self._settings.jwt_refresh_token_expire_days,
-                ),
-                "created_at": datetime.now(UTC),
-            })
-
-            access_token = self._token_service.create_access_token(
-                user["id"], org["id"], roles=roles,
-            )
-
-            await self._publisher.publish(UserLoggedIn(
-                aggregate_id=user["id"],
-                data={
-                    "organization_id": str(org["id"]),
+            await session_repo.create(
+                {
+                    "id": session_id,
+                    "user_id": user["id"],
+                    "refresh_token_hash": refresh_hash,
                     "ip_address": command.ip_address,
-                },
-            ), session)
+                    "user_agent": command.user_agent,
+                    "device_name": command.device_name,
+                    "last_seen_at": datetime.now(UTC),
+                    "expires_at": datetime.now(UTC)
+                    + timedelta(
+                        days=self._settings.jwt_refresh_token_expire_days,
+                    ),
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            timings.append(f"create_session={self._ms(t0)}")
 
-            logger.info("Login: user=%s org=%s", user["id"], org["id"])
-            return {
-                "access_token": access_token,
-                "refresh_token": refresh_raw,
-                "token_type": "bearer",
-                "user": user,
-                "organization": org,
-                "landing_url": landing_url,
-            }
+            t0 = perf_counter()
+            access_token = self._token_service.create_access_token(
+                user["id"],
+                org["id"],
+                roles=roles,
+            )
+            timings.append(f"create_access_token={self._ms(t0)}")
+
+            t0 = perf_counter()
+            await self._publisher.publish(
+                UserLoggedIn(
+                    aggregate_id=user["id"],
+                    data={
+                        "organization_id": str(org["id"]),
+                        "ip_address": command.ip_address,
+                    },
+                ),
+                session,
+            )
+            timings.append(f"publish_events={self._ms(t0)}")
+
+            t0 = perf_counter()
+            db_round_trips = get_sql_count()
+        # session commits here
+        timings.append(f"commit={self._ms(t0)}")
+
+        total_ms = self._ms(t_total)
+        logger.info(
+            "login.profile db_round_trips=%d %s TOTAL=%s",
+            db_round_trips,
+            " ".join(timings),
+            total_ms,
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_raw,
+            "token_type": "bearer",
+            "user": user,
+            "organization": org,
+            "landing_url": landing_url,
+        }
 
     async def refresh(self, refresh_token: str) -> dict[str, Any]:
+        timings: list[str] = []
+        t_total = perf_counter()
+
+        t0 = perf_counter()
+        token_hash = self._token_service.hash_refresh_token(refresh_token)
+        timings.append(f"hash_token={self._ms(t0)}")
+
         async with self._db.session() as session:
             repos = self._make_repos(session)
             session_repo = repos["session"]
             user_repo = repos["user"]
 
-            token_hash = self._token_service.hash_refresh_token(refresh_token)
+            t0 = perf_counter()
             sess = await session_repo.load_by_refresh_hash(token_hash)
             if sess is None:
                 raise ValidationError("Invalid refresh token")
@@ -374,24 +513,48 @@ class AuthService:
                 raise ValidationError("Refresh token has been revoked")
             if sess["expires_at"] < datetime.now(UTC):
                 raise ValidationError("Refresh token has expired")
+            timings.append(f"load_session={self._ms(t0)}")
 
+            t0 = perf_counter()
             user = await user_repo.load(sess["user_id"])
             if user is None:
                 raise ValidationError("User not found")
+            timings.append(f"load_user={self._ms(t0)}")
 
+            t0 = perf_counter()
             await session_repo.update_last_seen(sess["id"])
+            timings.append(f"update_last_seen={self._ms(t0)}")
 
+            t0 = perf_counter()
             access_token = self._token_service.create_access_token(
-                user["id"], user["organization_id"],
+                user["id"],
+                user["organization_id"],
             )
+            timings.append(f"create_access_token={self._ms(t0)}")
 
-            await self._publisher.publish(SessionRefreshed(
-                aggregate_id=sess["id"],
-                data={"user_id": str(user["id"])},
-            ), session)
+            t0 = perf_counter()
+            await self._publisher.publish(
+                SessionRefreshed(
+                    aggregate_id=sess["id"],
+                    data={"user_id": str(user["id"])},
+                ),
+                session,
+            )
+            timings.append(f"publish_events={self._ms(t0)}")
 
-            logger.info("Token refresh: user=%s session=%s", user["id"], sess["id"])
-            return {"access_token": access_token, "token_type": "bearer"}
+            t0 = perf_counter()
+            db_round_trips = get_sql_count()
+        # session commits here
+        timings.append(f"commit={self._ms(t0)}")
+
+        total_ms = self._ms(t_total)
+        logger.info(
+            "refresh.profile db_round_trips=%d %s TOTAL=%s",
+            db_round_trips,
+            " ".join(timings),
+            total_ms,
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
 
     async def logout(self, refresh_token: str) -> None:
         async with self._db.session() as session:
@@ -403,10 +566,13 @@ class AuthService:
             if sess is not None and sess["revoked_at"] is None:
                 await session_repo.revoke(sess["id"])
 
-                await self._publisher.publish(UserLoggedOut(
-                    aggregate_id=sess["user_id"],
-                    data={"session_id": str(sess["id"])},
-                ), session)
+                await self._publisher.publish(
+                    UserLoggedOut(
+                        aggregate_id=sess["user_id"],
+                        data={"session_id": str(sess["id"])},
+                    ),
+                    session,
+                )
 
                 logger.info("Logout: user=%s session=%s", sess["user_id"], sess["id"])
 
@@ -426,32 +592,37 @@ class AuthService:
 
             reset_raw = secrets.token_urlsafe(32)
             reset_hash = self._token_service.hash_refresh_token(reset_raw)
-            await token_repo.create({
-                "id": uuid4(),
-                "user_id": user["id"],
-                "token_hash": reset_hash,
-                "purpose": "RESET_PASSWORD",
-                "expires_at": datetime.now(UTC) + timedelta(hours=1),
-                "created_at": datetime.now(UTC),
-            })
+            await token_repo.create(
+                {
+                    "id": uuid4(),
+                    "user_id": user["id"],
+                    "token_hash": reset_hash,
+                    "purpose": "RESET_PASSWORD",
+                    "expires_at": datetime.now(UTC) + timedelta(hours=1),
+                    "created_at": datetime.now(UTC),
+                }
+            )
 
             user_id = user["id"]
             user_email = user["email"]
             logger.info(
                 "Password reset requested: user=%s reset_url=/auth/reset-password?token=%s",
-                user["id"], reset_raw,
+                user["id"],
+                reset_raw,
             )
 
         if reset_raw is not None and self._email_service is not None and user_id is not None:
             try:
-                await self._email_service.send(EmailMessage(
-                    template="reset-password",
-                    to=user_email,
-                    subject="Reset your password",
-                    context={
-                        "reset_url": f"/auth/reset-password?token={reset_raw}",
-                    },
-                ))
+                await self._email_service.send(
+                    EmailMessage(
+                        template="reset-password",
+                        to=user_email,
+                        subject="Reset your password",
+                        context={
+                            "reset_url": f"/auth/reset-password?token={reset_raw}",
+                        },
+                    )
+                )
             except Exception:
                 logger.exception("Failed to send password reset email to %s", user_email)
 
@@ -482,10 +653,13 @@ class AuthService:
             await token_repo.mark_used(token["id"])
             await session_repo.revoke_all_for_user(token["user_id"])
 
-            await self._publisher.publish(PasswordReset(
-                aggregate_id=token["user_id"],
-                data={"purpose": "RESET_PASSWORD"},
-            ), session)
+            await self._publisher.publish(
+                PasswordReset(
+                    aggregate_id=token["user_id"],
+                    data={"purpose": "RESET_PASSWORD"},
+                ),
+                session,
+            )
 
             logger.info("Password reset: user=%s", token["user_id"])
             return {"reset": True, "message": "Password reset successfully"}

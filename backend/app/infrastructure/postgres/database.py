@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -13,6 +16,14 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.kernel.config.loader import Settings
+
+logger = logging.getLogger("app.infrastructure.postgres.database")
+
+_sql_count: ContextVar[int] = ContextVar("sql_count", default=0)
+
+
+def get_sql_count() -> int:
+    return _sql_count.get()
 
 
 def _json_default(obj: object) -> str:
@@ -32,6 +43,8 @@ class Database:
             echo=settings.debug,
             pool_size=5,
             max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=1800,
             json_serializer=lambda v: json.dumps(v, default=_json_default),
         )
         self.session_factory = async_sessionmaker(
@@ -39,12 +52,28 @@ class Database:
             class_=AsyncSession,
             expire_on_commit=False,
         )
+        self._install_statement_counter()
+
+    def _install_statement_counter(self) -> None:
+        event.listen(self.engine, "before_cursor_execute", self._on_before_execute)
+        event.listen(self.engine, "after_cursor_execute", self._on_after_execute)
+
+    @staticmethod
+    def _on_before_execute(_conn, _cursor, _statement, _parameters, _context, _executemany):
+        pass
+
+    @staticmethod
+    def _on_after_execute(_conn, _cursor, _statement, _parameters, _context, _executemany):
+        _sql_count.set(_sql_count.get() + 1)
 
     async def close(self) -> None:
+        event.remove(self.engine, "before_cursor_execute", self._on_before_execute)
+        event.remove(self.engine, "after_cursor_execute", self._on_after_execute)
         await self.engine.dispose()
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
+        _sql_count.set(0)
         async with self.session_factory() as session:
             try:
                 yield session

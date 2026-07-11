@@ -26,7 +26,6 @@ class PostgresVerificationTokenRepository(VerificationTokenRepository):
             created_at=token.get("created_at", datetime.now(UTC)),
         )
         self._session.add(row)
-        await self._session.flush()
 
     async def load_by_token_hash(self, token_hash: str) -> dict[str, Any] | None:
         result = await self._session.execute(

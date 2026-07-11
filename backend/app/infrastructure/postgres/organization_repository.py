@@ -56,6 +56,19 @@ class PostgresOrganizationRepository(OrganizationRepository):
             self._session.add(row)
             await self._session.flush()
 
+    async def create(self, organization: dict[str, Any]) -> None:
+        row = OrganizationTable(
+            id=organization["id"],
+            name=organization["name"],
+            slug=organization["slug"],
+            lifecycle_state=organization.get("lifecycle_state", "active"),
+            version=organization.get("version", 1),
+            extra=organization.get("metadata", {}),
+            created_at=organization.get("created_at"),
+            updated_at=organization.get("updated_at"),
+        )
+        self._session.add(row)
+
     async def delete(self, id: UUID) -> None:
         result = await self._session.execute(
             select(OrganizationTable).where(OrganizationTable.id == id)
