@@ -9,6 +9,8 @@ from time import perf_counter
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from sqlalchemy.exc import IntegrityError
+
 from app.foundation.exceptions.base import ConflictError, ValidationError
 from app.infrastructure.postgres.database import get_sql_count
 from app.modules.platform.identity.commands import (
@@ -105,33 +107,42 @@ class AuthService:
         return f"{(perf_counter() - start) * 1000:.1f}ms"
 
     async def signup(self, command: SignupCommand) -> dict[str, Any]:
+        self._password_policy.validate(command.password, context=command.email)
+
+        base_slug = _slugify(command.organization_name)
+        for attempt in range(3):
+            slug = base_slug if attempt == 0 else f"{base_slug}-{secrets.token_hex(2)}"
+            try:
+                return await self._attempt_signup(command, slug)
+            except IntegrityError as e:
+                err_str = str(e)
+                if "users_email" in err_str:
+                    raise ConflictError(
+                        f"User with email '{command.email}' already exists"
+                    ) from e
+                if "organizations_slug" in err_str:
+                    logger.info("Slug collision '%s', attempt %d, retrying", slug, attempt + 1)
+                    continue
+                raise
+
+        raise ConflictError(
+            "Could not create unique organization slug after 3 attempts"
+        )
+
+    async def _attempt_signup(
+        self, command: SignupCommand, slug: str
+    ) -> dict[str, Any]:
         timings: list[str] = []
         t_total = perf_counter()
 
-        t0 = perf_counter()
-        self._password_policy.validate(command.password, context=command.email)
-        timings.append(f"password_validate={self._ms(t0)}")
-
         async with self._db.session() as session:
             repos = self._make_repos(session)
-            user_repo = repos["user"]
             org_repo = repos["org"]
             role_repo = repos["role"]
+            user_repo = repos["user"]
             membership_repo = repos["membership"]
             sub_repo = repos["sub"]
             token_repo = repos["token"]
-
-            t0 = perf_counter()
-            existing_user = await user_repo.load_by_email(command.email)
-            if existing_user is not None:
-                raise ConflictError(f"User with email '{command.email}' already exists")
-            timings.append(f"check_email={self._ms(t0)}")
-
-            t0 = perf_counter()
-            slug = _slugify(command.organization_name)
-            if await org_repo.exists_by_slug(slug):
-                slug = f"{slug}-{secrets.token_hex(3)}"
-            timings.append(f"slug_generate={self._ms(t0)}")
 
             t0 = perf_counter()
             org_id = uuid4()
@@ -288,7 +299,7 @@ class AuthService:
 
             t0 = perf_counter()
             db_round_trips = get_sql_count()
-        # session commits here
+        # session commits here — IntegrityError may propagate here
         timings.append(f"commit={self._ms(t0)}")
 
         t0 = perf_counter()
