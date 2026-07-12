@@ -17,6 +17,7 @@ dependencies = [
     "argon2-cffi>=23.0.0",
     "PyJWT>=2.9.0",
     "cryptography>=42.0.0",
+    "resend>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG"]
 "*/error_handler.py" = ["ARG001"]
 "*/discovery.py" = ["ARG001", "E501"]
 "*/dependencies/container.py" = ["UP047"]
+"*/notifications/emails/*.py" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"

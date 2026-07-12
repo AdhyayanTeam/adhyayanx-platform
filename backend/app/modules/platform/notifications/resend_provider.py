@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,9 +10,11 @@ if TYPE_CHECKING:
 from app.modules.platform.notifications.emails.reset_password import render_reset_password
 from app.modules.platform.notifications.emails.verify_email import render_verify_email
 
+logger = logging.getLogger("app.modules.platform.notifications.resend")
+
 _TEMPLATE_MAP = {
-    "verify_email": render_verify_email,
-    "reset_password": render_reset_password,
+    "verify-email": render_verify_email,
+    "reset-password": render_reset_password,
 }
 
 
@@ -29,12 +33,19 @@ class ResendEmailProvider:
         try:
             from resend import Emails
         except ImportError:
-            raise ImportError("pip install resend is required for ResendEmailProvider")
+            raise ImportError("pip install resend is required for ResendEmailProvider") from None
 
         emails = Emails(api_key=self._api_key)
-        await emails.send(
+        await asyncio.to_thread(
+            emails.send,
             from_address=self._from_address,
             to=[message.to],
             subject=subject,
             html=html,
+        )
+
+        logger.info(
+            "Email sent type=%s recipient=%s provider=resend",
+            message.template,
+            message.to,
         )
