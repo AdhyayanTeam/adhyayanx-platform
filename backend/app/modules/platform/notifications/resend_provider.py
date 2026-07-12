@@ -4,6 +4,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+import resend
+
 if TYPE_CHECKING:
     from app.modules.platform.notifications.email_service import EmailMessage
 
@@ -20,8 +22,8 @@ _TEMPLATE_MAP = {
 
 class ResendEmailProvider:
     def __init__(self, api_key: str, from_address: str) -> None:
-        self._api_key = api_key
         self._from_address = from_address
+        resend.api_key = api_key
 
     async def send(self, message: EmailMessage) -> None:
         renderer = _TEMPLATE_MAP.get(message.template)
@@ -30,19 +32,14 @@ class ResendEmailProvider:
 
         subject, html = renderer(**message.context)
 
-        try:
-            from resend import Emails
-        except ImportError:
-            raise ImportError("pip install resend is required for ResendEmailProvider") from None
-
-        emails = Emails(api_key=self._api_key)
-        await asyncio.to_thread(
-            emails.send,
-            from_address=self._from_address,
-            to=[message.to],
-            subject=subject,
-            html=html,
-        )
+        emails = resend.Emails()
+        params: resend.Emails.SendParams = {
+            "from": self._from_address,
+            "to": [message.to],
+            "subject": subject,
+            "html": html,
+        }
+        await asyncio.to_thread(emails.send, params)
 
         logger.info(
             "Email sent type=%s recipient=%s provider=resend",

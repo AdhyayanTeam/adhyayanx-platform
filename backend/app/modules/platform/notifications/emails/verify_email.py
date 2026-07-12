@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 
-def render_verify_email(name: str, verification_url: str) -> tuple[str, str]:
+def render_verify_email(
+    name: str, verification_url: str, organization: str | None = None
+) -> tuple[str, str]:
     """Returns (subject, html_body) for email verification."""
     subject = "Verify your email - ADX Platform"
+    org_line = f"<p>You joined <strong>{organization}</strong>.</p>" if organization else ""
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -11,6 +14,7 @@ def render_verify_email(name: str, verification_url: str) -> tuple[str, str]:
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2>Welcome to ADX Platform</h2>
         <p>Hi {name},</p>
+        {org_line}
         <p>Please verify your email address by clicking the link below:</p>
         <p style="text-align: center; margin: 30px 0;">
             <a href="{verification_url}"
