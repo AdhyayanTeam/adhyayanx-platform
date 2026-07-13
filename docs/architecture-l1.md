@@ -4,35 +4,41 @@
 
 ## 1. Executive Summary
 
-**Current project stage:** Early prototype / proof-of-concept. The backend implements the foundational authentication, organization management, and event infrastructure. The frontend is not started. No domain-specific vertical solutions exist.
+**Current project stage:** Working prototype with complete authentication system, organization management, production email integration, and a functional frontend for auth flows. No domain-specific vertical solutions exist.
 
-**Overall completion estimate:** ~20–25% toward a functional MVP; ~10% toward production.
+**Overall completion estimate:** ~40–45% toward a functional MVP; ~15–20% toward production.
 
 **Major implemented capabilities:**
 - Full authentication lifecycle: signup (with org+role+membership+subscription creation), login, logout, token refresh, email verification, forgot/reset password
 - Organization CRUD with event publication
 - User management (CRUD, deactivate, reactivate)
 - JWT (RS256) access/refresh token system with Argon2 password hashing
+- Resend email integration with HTML templates (verify-email, reset-password)
 - Transactional outbox pattern (write side)
 - Custom DI container with auto-wiring
-- Exception hierarchy and global error handling
+- Exception hierarchy (DomainError, InfrastructureError, ApplicationError subtrees) and global error handling
 - Structured logging middleware
-- PostgreSQL schema with Alembic migrations (2 migrations)
-- In-memory rate limiter (not wired)
-- Console email provider for development
+- PostgreSQL schema with Alembic migrations (2 migrations — 8 tables total)
+- Kubernetes-style health probes (`/health/live`, `/health/ready`)
+- Password policy enforcement (complexity rules, common password blocking)
+- Navigation service for landing URL resolution by blueprint code
+- Frontend (Next.js 16): auth flows (login, signup, forgot/reset password, email verification), console pages (dashboard, profile, organization, settings), auth context with silent refresh
 - Integration test suite covering auth flows and org lifecycle
+- In-memory rate limiter (defined but not wired)
 
 **Major missing capabilities:**
 - Authorization / RBAC enforcement (all admin routes are unprotected)
 - Event outbox dispatcher (events written but never dispatched)
 - Redis, background queues, rate limiting wired
-- Frontend (Next.js — empty placeholder)
+- Frontend console CRUD operations (profile/org editing, settings management)
+- Server-side route protection for `/console` routes
 - Blueprint implementations (academy, clinic, gym, salon are empty)
 - DHARA compute plane integration
 - Workspace module
 - Concrete domain aggregates (no typed domain objects, everything is `dict[str, Any]`)
 - Password brute-force protection / account lockout
 - Refresh token rotation
+- API documentation (OpenAPI/Swagger)
 
 **Technical debt:**
 - `Lifecycle` class created but never integrated into FastAPI lifespan
@@ -45,12 +51,16 @@
 - `Capability`, `Policy`, `Workflow` contracts have zero implementations
 - `SolutionBlueprint` enum is orphaned (never imported)
 - Three commands (`ForgotPasswordCommand`, `RefreshTokenCommand`, `LogoutCommand`) are defined but unused
+- `.env.example` contains real credentials (Neon DB URL, Resend API key) — should use placeholders
+- Frontend console routes protected only client-side (no server-side auth guard)
+- Frontend signup hardcodes `blueprint_code: "academy"`
 
 **Biggest architectural risks:**
-1. **Security:** All `/users` endpoints are completely unprotected — anyone can create, deactivate, or reactivate users.
+1. **Security:** All `/users` and `/organizations` endpoints are completely unprotected — anyone can create, deactivate, or reactivate users and organizations.
 2. **Event delivery:** The outbox pattern is half-built — events are written to the DB but never dispatched to handlers. This is a silent failure.
 3. **No typed domain model:** The entire codebase operates on `dict[str, Any]` instead of typed aggregate roots. This defeats the purpose of DDD contracts and makes the codebase fragile.
 4. **DI wiring bypass:** Services lazily import concrete Postgres repositories instead of using port interfaces, undermining the hexagonal architecture.
+5. **Client-side-only auth:** Frontend `/console` routes are protected only by React context checks, not server-side middleware. A direct URL access bypasses the guard.
 
 ---
 
@@ -59,9 +69,60 @@
 ```
 adhyayanx-platform/
 ├── .github/workflows/backend.yml          # CI: lint, typecheck, test
-├── docs/aps/runtime-spec.md               # Architectural constitution
+├── docs/
+│   ├── aps/runtime-spec.md                # Architectural constitution
+│   ├── architecture-l1.md                 # This document
+│   └── frontend/architecture.md           # Frontend architecture spec
 ├── docker-compose.yml                     # PostgreSQL 16 only
-├── frontend/                              # .gitkeep — empty
+├── frontend/                              # Next.js 16 App Router
+│   ├── package.json                       # React 19, Tailwind v4, shadcn/ui
+│   ├── next.config.ts
+│   ├── tsconfig.json
+│   ├── components.json                    # shadcn/ui config (base-nova style)
+│   ├── public/                            # Static assets
+│   └── src/
+│       ├── app/
+│       │   ├── layout.tsx                 # Root layout (Geist fonts, Providers)
+│       │   ├── page.tsx                   # Redirects to /login
+│       │   ├── providers.tsx              # Client-side AuthProvider
+│       │   ├── globals.css                # Tailwind + theme CSS variables
+│       │   ├── (public)/                  # Guest-only route group
+│       │   │   ├── layout.tsx             # Passthrough layout
+│       │   │   ├── login/page.tsx
+│       │   │   ├── signup/page.tsx
+│       │   │   ├── forgot-password/page.tsx
+│       │   │   ├── reset-password/page.tsx
+│       │   │   └── verify-email/page.tsx
+│       │   └── (console)/                 # Authenticated route group
+│       │       ├── layout.tsx             # Auth guard + sidebar
+│       │       └── console/
+│       │           ├── page.tsx           # Dashboard home
+│       │           ├── profile/page.tsx
+│       │           ├── organization/page.tsx
+│       │           └── settings/page.tsx
+│       ├── features/auth/                 # Auth feature module
+│       │   ├── index.ts                   # Barrel export
+│       │   ├── types.ts                   # TS types for API responses
+│       │   ├── api.ts                     # Auth API client methods
+│       │   ├── schemas.ts                 # Zod validation schemas
+│       │   ├── auth-context.tsx           # AuthProvider + useAuth hook
+│       │   └── ui/                        # Auth form components
+│       │       ├── login-form.tsx
+│       │       ├── signup-form.tsx
+│       │       ├── forgot-password-form.tsx
+│       │       ├── reset-password-form.tsx
+│       │       ├── verify-email-client.tsx
+│       │       └── console-sidebar.tsx
+│       ├── shared/
+│       │   ├── lib/
+│       │   │   ├── api-client.ts          # api(), apiAuth(), apiAuthRetry()
+│       │   │   └── utils.ts               # cn() class merging
+│       │   ├── types/api.ts               # ApiError, ApiResult<T>
+│       │   └── ui/                        # shadcn/ui components (13)
+│       │       ├── alert.tsx, avatar.tsx, button.tsx, card.tsx
+│       │       ├── dropdown-menu.tsx, input.tsx, label.tsx
+│       │       ├── loading-spinner.tsx, separator.tsx, sheet.tsx
+│       └── middleware.ts                  # Guest-route redirect middleware
 ├── scripts/                               # .gitkeep — empty
 ├── docker/                                # .gitkeep — empty
 ├── README.md                              # Minimal project description
@@ -71,6 +132,7 @@ adhyayanx-platform/
     ├── uv.lock                            # Locked deps
     ├── alembic.ini                        # Alembic config
     ├── Dockerfile                         # Python 3.12-slim + uv
+    ├── .dockerignore                      # Docker build exclusions
     ├── README.md                          # Backend dev guide
     ├── STATUS.md                          # Status checklist
     ├── keys/dev-private.pem               # JWT RSA private key
@@ -79,6 +141,8 @@ adhyayanx-platform/
     │   ├── api/                           # HTTP layer
     │   │   ├── main.py                    # App factory, middleware, bootstrap
     │   │   ├── routers/                   # Router registration + health
+    │   │   │   ├── __init__.py            # Router registration
+    │   │   │   └── health.py              # /health/live + /health/ready
     │   │   ├── middleware/                 # Error handler + logging
     │   │   └── dependencies/              # FastAPI DI bridge
     │   ├── kernel/                        # App bootstrap core
@@ -89,19 +153,49 @@ adhyayanx-platform/
     │   │   └── config/loader.py           # Pydantic Settings
     │   ├── foundation/                    # Cross-cutting
     │   │   ├── types.py                   # EntityId, Timestamp, Version
-    │   │   ├── exceptions/base.py         # Exception hierarchy
+    │   │   ├── exceptions/base.py         # Exception hierarchy (3 subtrees)
     │   │   └── security/                  # Placeholder
     │   ├── infrastructure/                # Adapters
     │   │   ├── postgres/                  # Database, ORM, repos, migrations
+    │   │   │   ├── database.py            # Engine, session factory
+    │   │   │   ├── tables.py              # ORM models (8 tables)
+    │   │   │   ├── identity_repository.py
+    │   │   │   ├── organization_repository.py
+    │   │   │   ├── organization_role_repository.py
+    │   │   │   ├── organization_subscription_repository.py
+    │   │   │   ├── membership_repository.py
+    │   │   │   ├── session_repository.py
+    │   │   │   ├── verification_token_repository.py
+    │   │   │   ├── outbox_repository.py
+    │   │   │   └── migrations/versions/    # 2 migrations
     │   │   ├── redis/                     # Placeholder
     │   │   ├── queues/                    # Placeholder
     │   │   └── rate_limiter.py            # In-memory sliding window
     │   ├── modules/platform/              # Domain modules
     │   │   ├── contracts/                 # Base abstractions (ABC)
     │   │   ├── events/                    # EventBus, Publisher, Outbox
-    │   │   ├── identity/                  # Auth + user management
+    │   │   ├── identity/                  # Auth + user management (complete)
+    │   │   │   ├── auth_service.py        # Auth orchestrator (~730 lines)
+    │   │   │   ├── auth_router.py         # Auth HTTP endpoints (8 routes)
+    │   │   │   ├── service.py             # User management CRUD
+    │   │   │   ├── router.py              # User HTTP endpoints
+    │   │   │   ├── token_service.py       # JWT RS256 operations
+    │   │   │   ├── password_policy.py     # Argon2 + complexity rules
+    │   │   │   ├── navigation_service.py  # Landing URL resolver
+    │   │   │   ├── solution_blueprint.py  # Blueprint enum
+    │   │   │   ├── commands.py            # 10 command definitions
+    │   │   │   ├── events.py              # 12 domain events
+    │   │   │   ├── schemas.py             # Pydantic request/response schemas
+    │   │   │   ├── handlers.py            # Event handlers (logging stubs)
+    │   │   │   └── ports/                 # 6 repository port ABCs
     │   │   ├── organizations/             # Org CRUD
-    │   │   ├── notifications/             # Email service
+    │   │   ├── notifications/             # Email service (complete)
+    │   │   │   ├── email_service.py       # Protocol + EmailMessage
+    │   │   │   ├── console_provider.py    # Dev fallback
+    │   │   │   ├── resend_provider.py     # Production Resend API
+    │   │   │   └── emails/               # HTML email templates
+    │   │   │       ├── verify_email.py
+    │   │   │       └── reset_password.py
     │   │   ├── workspaces/                # Placeholder
     │   │   └── dhara/                     # Placeholder
     │   ├── modules/blueprints/            # Vertical solutions
@@ -117,25 +211,32 @@ adhyayanx-platform/
 
 | Folder | Responsibility |
 |---|---|
+| `frontend/src/app` | Next.js App Router pages with route groups for public/console isolation |
+| `frontend/src/features/auth` | Self-contained auth feature: types, API calls, schemas, context, UI components |
+| `frontend/src/shared` | Shared utilities (`api-client.ts`, `utils.ts`), types, and shadcn/ui component library |
+| `frontend/src/middleware.ts` | Edge middleware: redirects logged-in users away from guest routes |
 | `backend/app/api` | FastAPI app factory, HTTP routers, middleware, DI bridge to FastAPI |
 | `backend/app/kernel` | Application bootstrap, DI container, lifecycle, settings |
-| `backend/app/foundation` | Shared type aliases, exception hierarchy, security utilities |
-| `backend/app/infrastructure` | Database engine, ORM tables, repository implementations, migrations, rate limiter |
+| `backend/app/foundation` | Shared type aliases, exception hierarchy (3 subtrees), security utilities |
+| `backend/app/infrastructure` | Database engine, ORM tables (8), 8 repository implementations, migrations (2), rate limiter |
 | `backend/app/modules/platform/contracts` | DDD building blocks: aggregate root, command, event, repository, policy, workflow base classes |
 | `backend/app/modules/platform/events` | Event bus (in-process), outbox publisher, outbox dispatcher (stub) |
-| `backend/app/modules/platform/identity` | Authentication, authorization, user CRUD, token management |
+| `backend/app/modules/platform/identity` | Complete auth lifecycle: signup, login, logout, refresh, email verification, password reset, user CRUD |
 | `backend/app/modules/platform/organizations` | Organization CRUD with event publication |
-| `backend/app/modules/platform/notifications` | Email service abstraction with console and Resend providers |
+| `backend/app/modules/platform/notifications` | Email service with Resend API integration, console fallback, HTML templates |
 | `backend/app/modules/platform/workspaces` | Empty placeholder |
 | `backend/app/modules/platform/dhara` | Empty placeholder for AI compute plane |
 | `backend/app/modules/blueprints` | Empty placeholder for vertical solutions |
 | `docs/aps` | Architecture specification document |
+| `docs/frontend` | Frontend architecture specification |
 
 ---
 
 ## 3. Architecture
 
-**Overall architecture:** Monolithic FastAPI application following Ports & Adapters (Hexagonal Architecture) with CQRS-inspired command/event separation and a transactional outbox pattern.
+**Overall architecture:** Monolithic FastAPI backend + Next.js frontend. Backend follows Ports & Adapters (Hexagonal Architecture) with CQRS-inspired command/event separation and a transactional outbox pattern. Frontend follows feature-based module structure with route group isolation.
+
+### Backend Architecture
 
 **Layers (top to bottom, dependency direction flows inward):**
 
@@ -163,10 +264,10 @@ Foundation Layer (types, exceptions)
 - Schemas
 
 **Domain boundaries:**
-- **Identity:** Users, authentication, sessions, verification tokens, passwords
+- **Identity:** Users, authentication, sessions, verification tokens, passwords, roles, memberships, subscriptions, navigation
 - **Organizations:** Organization CRUD, slug management, lifecycle
 - **Events:** Cross-cutting event infrastructure (bus, outbox)
-- **Notifications:** Email delivery abstraction
+- **Notifications:** Email delivery abstraction with Resend API and console providers, HTML email templates
 - **Workspaces:** Not implemented
 - **DHARA:** Not implemented
 
@@ -192,7 +293,7 @@ These two systems are **disconnected** — events written to the outbox are neve
 1. `create_app()` in `main.py` is called
 2. `structlog` is configured
 3. `FastAPI` instance created with CORS and logging middleware
-4. Error handlers and routers registered
+4. Error handlers and routers registered (health, auth, users, organizations)
 5. `Bootstrap.configure()` runs:
    - Settings registered in DI container
    - `Database` created and registered
@@ -200,10 +301,33 @@ These two systems are **disconnected** — events written to the outbox are neve
    - `EventBus` and `Publisher` registered
    - Blueprints discovered (currently none with `register()` function)
    - Event handlers discovered (but not wired to the bus)
-6. Email service manually wired into AuthService via setter
-7. App returned
+6. Email service selected based on `EMAIL_PROVIDER` setting:
+   - `"resend"` → `ResendEmailProvider` (production, uses Resend API)
+   - `"console"` (default) → `ConsoleEmailProvider` (dev, logs to stdout)
+7. Email service manually wired into AuthService via setter
+8. App returned
 
 **Critical gap:** The `Lifecycle` object created in `Bootstrap` is never connected to the FastAPI lifespan, so no shutdown hooks run (Database.close() is never called).
+
+### Frontend Architecture
+
+**Framework:** Next.js 16 (App Router) with React 19, TypeScript, Tailwind CSS v4, shadcn/ui (base-nova style).
+
+**Key patterns:**
+- **Route groups:** `(public)` for guest-only pages, `(console)` for authenticated pages — same URL structure, different layouts
+- **Feature modules:** `features/auth/` is self-contained with types, API calls, schemas, context, and UI components
+- **Auth flow:** Access token in React state only, refresh token in HttpOnly cookie. Session restored on mount via `/refresh` + `/me`. 401s trigger automatic retry after silent refresh.
+- **API client:** Centralized `api-client.ts` with `api()`, `apiAuth()`, `apiAuthRetry()` wrappers returning `ApiResult<T>` discriminated unions
+- **Client-side auth guard:** Console layout checks `useAuth()` and redirects to `/login` if unauthenticated
+
+**Frontend request lifecycle:**
+1. User navigates to a route (e.g., `/login`)
+2. Route group layout renders (passthrough for public, auth-guarded for console)
+3. Page component renders form/UI
+4. Form submission calls `authApi.*()` method
+5. `authApi` uses `api()` or `apiAuth()` wrapper (prepends `NEXT_PUBLIC_API_URL`, handles errors)
+6. On success: auth context updated, navigation occurs
+7. On 401: `apiAuthRetry()` attempts silent refresh, then retries once
 
 ---
 
@@ -249,7 +373,7 @@ These two systems are **disconnected** — events written to the outbox are neve
 
 **Purpose:** Complete authentication lifecycle: signup, login, logout, token refresh, email verification, password reset, user CRUD.
 
-**Public API:** `IdentityService` (create, get, deactivate, reactivate, list), `AuthService` (signup, login, logout, refresh, verify_email, forgot_password, reset_password, get_current_user), `TokenService` (create_access_token, create_refresh_token_pair, decode_access_token), `NavigationService` (resolve_landing), `PasswordPolicy` (validate, hash, verify)
+**Public API:** `IdentityService` (create, get, deactivate, reactivate, list), `AuthService` (signup, login, logout, refresh, verify_email, forgot_password, reset_password, get_current_user), `TokenService` (create_access_token, create_refresh_token_pair, decode_access_token, hash_refresh_token), `NavigationService` (resolve_landing), `PasswordPolicy` (validate, hash, verify)
 
 **Dependencies:** Database, Publisher, TokenService, NavigationService, PasswordPolicy, Settings, EmailService
 
@@ -259,9 +383,9 @@ These two systems are **disconnected** — events written to the outbox are neve
 
 **Events consumed:** `on_user_created`, `on_user_deactivated`, `on_user_reactivated` (all logging-only stubs)
 
-**Implementation status:** High. The auth lifecycle is fully functional including signup with organization+role+membership+subscription creation, login with session management, token refresh, email verification, and password reset with session revocation.
+**Implementation status:** Complete. The auth lifecycle is fully functional including signup with organization+role+membership+subscription creation, login with session management, token refresh, email verification, and password reset with session revocation. Repository ports and Postgres implementations are complete for all 6 sub-domains (identity, membership, organization_role, organization_subscription, session, verification_token). Password policy enforces complexity rules and blocks common passwords. Navigation service resolves landing URLs by blueprint code.
 
-**Missing work:** Authorization middleware on admin routes, rate limiting, brute-force protection, refresh token rotation, rate limiting on forgot-password, typed domain objects (currently dict-based), handler implementations for 9 of 12 events.
+**Missing work:** Authorization middleware on admin routes, rate limiting, brute-force protection, refresh token rotation, typed domain objects (currently dict-based), handler implementations for 9 of 12 events.
 
 ### 4.4 `organizations` (Organization Management)
 
@@ -283,11 +407,11 @@ These two systems are **disconnected** — events written to the outbox are neve
 
 ### 4.5 `notifications` (Email Service)
 
-**Purpose:** Email delivery abstraction with pluggable providers.
+**Purpose:** Email delivery abstraction with pluggable providers and HTML email templates.
 
-**Public API:** `EmailService` (Protocol), `EmailMessage` (dataclass)
+**Public API:** `EmailService` (Protocol), `EmailMessage` (dataclass), `ConsoleEmailProvider`, `ResendEmailProvider`, `render_verify_email()`, `render_reset_password()`
 
-**Dependencies:** None (pure abstraction)
+**Dependencies:** Resend API (production), stdlib logging (console)
 
 **Database tables:** None
 
@@ -295,9 +419,9 @@ These two systems are **disconnected** — events written to the outbox are neve
 
 **Events consumed:** None
 
-**Implementation status:** Medium. Protocol defined, `ConsoleEmailProvider` works for dev, `ResendEmailProvider` is a `NotImplementedError` stub.
+**Implementation status:** High. `EmailService` Protocol defined. `ConsoleEmailProvider` works for dev (logs to stdout). `ResendEmailProvider` is fully implemented using `resend.Emails().send()` via `asyncio.to_thread()`. Two HTML email templates implemented as Python functions returning `(subject, html)` tuples: `verify_email.py` (inline-styled verification email with CTA button) and `reset_password.py` (inline-styled password reset email with 24-hour expiry warning). Template rendering uses a `_TEMPLATE_MAP` dictionary mapping template names to renderer functions. Email service is wired into `AuthService` via manual setter injection.
 
-**Missing work:** Implement `ResendEmailProvider`, wire into DI container, add template rendering.
+**Missing work:** Additional email templates (welcome, organization invite, etc.), wire `EmailService` into DI container instead of manual setter, add template versioning.
 
 ### 4.6 `workspaces`
 
@@ -326,14 +450,14 @@ These two systems are **disconnected** — events written to the outbox are neve
 Implemented in `auth_service.py` (~730 lines — the largest file in the codebase).
 
 **Signup flow:**
-1. Validate password via `PasswordPolicy` (Argon2 validation + complexity rules)
-2. Create organization with auto-generated slug (retries up to 3 times on slug collision)
+1. Validate password via `PasswordPolicy` (Argon2 validation + complexity rules + common password check + context check)
+2. Create organization with auto-generated slug (retries up to 3 times on slug collision, with random suffix on retry)
 3. Create "owner" role for the organization
 4. Create user with Argon2-hashed password
 5. Create membership linking user to organization with owner role
 6. Create organization subscription with blueprint code
 7. Create email verification token (SHA-256 hashed)
-8. Send verification email (if email service configured)
+8. Send verification email via `EmailService` (Resend or Console provider, failures logged but don't block signup)
 9. Publish 5 domain events to outbox
 
 **Login flow:**
@@ -408,7 +532,7 @@ The `permissions` field on `organization_roles` is a JSON column with no structu
 ### Middleware
 
 - `LoggingMiddleware` — logs all requests (no auth check)
-- `error_handler` — maps ADXError to HTTP status codes
+- `error_handler` — maps ADXError to HTTP status codes (DomainError → 4xx, InfrastructureError → 5xx)
 - **No authentication middleware** — the only auth check is manual token parsing in `GET /auth/me`
 
 ### Security Considerations
@@ -466,7 +590,7 @@ The `permissions` field on `organization_roles` is a JSON column with no structu
 - **Relationships:** FK to users.id, organizations.id, organization_roles.id
 - **Constraints:** PK (UUID), three FKs, NOT NULL
 - **Indexes:** user_id, organization_id
-- **Current usage:** Created during signup
+- **Current usage:** Created during signup, read during login to load roles
 - **Unused columns:** None
 - **Future concerns:** No unique constraint on (user_id, organization_id) — duplicate memberships possible. No `list_for_org` query.
 
@@ -493,7 +617,7 @@ The `permissions` field on `organization_roles` is a JSON column with no structu
 - **Relationships:** FK to organizations.id
 - **Constraints:** PK (UUID), FK to organizations.id, NOT NULL
 - **Indexes:** organization_id
-- **Current usage:** Created during signup, read during login
+- **Current usage:** Created during signup, read during login to resolve landing URL
 - **Unused columns:** `ends_at` (never checked for expiry), `status` (always "active", never transitioned)
 - **Future concerns:** No subscription lifecycle management (cancel, renew, upgrade)
 
@@ -624,8 +748,8 @@ All configuration is managed via Pydantic Settings loading from environment vari
 | `password_min_length` | 8 | Yes |
 | `password_max_length` | 128 | Yes |
 | `password_require_upper/lower/digit/special` | True/True/True/False | Yes |
-| `email_provider` | "console" | Yes |
-| `resend_api_key` | "" | Yes (but provider is a stub) |
+| `email_provider` | "console" | Yes (selects Console or Resend provider) |
+| `resend_api_key` | "" | Yes (used when `email_provider=resend`) |
 | `email_from_address` | "ADX <noreply@adhyayanx.in>" | Yes |
 
 ### Feature Flags
@@ -670,8 +794,10 @@ All repositories operate on `dict[str, Any]`, not typed domain objects.
 ### Email
 
 - `ConsoleEmailProvider` — prints to stdout (dev)
-- `ResendEmailProvider` — `NotImplementedError` stub
+- `ResendEmailProvider` — fully implemented using `resend.Emails().send()` via `asyncio.to_thread()`
 - `EmailService` — Protocol interface
+- HTML email templates: `verify_email.py`, `reset_password.py` (Python functions returning `(subject, html)`)
+- Template rendering via `_TEMPLATE_MAP` dictionary in `ResendEmailProvider`
 - Wired via manual setter, not through DI container
 
 ### Logging
@@ -691,7 +817,7 @@ Not implemented. No file storage, S3, or blob storage integration.
 
 ### External Integrations
 
-- Resend email API (stub)
+- Resend email API (fully implemented, used for transactional emails)
 - DHARA compute plane (empty placeholder)
 - No other external integrations
 
@@ -756,11 +882,26 @@ The integration test suite is well-built for what it covers. The test doubles fa
 
 ## 12. Frontend
 
-**Framework:** Planned as Next.js.
+**Framework:** Next.js 16 (App Router) with React 19, TypeScript, Tailwind CSS v4, shadcn/ui (base-nova style).
 
-**Current status:** Empty. The `frontend/` directory contains only a `.gitkeep` file. No pages, no routing, no API integration, no components.
+**Current status:** Functional auth flows and read-only console pages. The frontend implements login, signup, forgot-password, reset-password, and email verification. Console pages show user profile, organization details, and settings (logout only). Auth context manages session state with silent refresh on mount.
 
-**Missing work:** Everything. The frontend is 0% complete.
+**Architecture:** Feature-based module structure (`features/auth/`) with route group layout isolation (`(public)` vs `(console)`). API calls go through centralized `api-client.ts` with `ApiResult<T>` discriminated unions. Client-side auth guard via React context. Edge middleware redirects logged-in users from guest routes.
+
+**Implemented pages:**
+- `/login` — Email + password form with Zod validation
+- `/signup` — Organization name, owner name, email, password form (hardcodes `blueprint_code: "academy"`)
+- `/forgot-password` — Email-only form
+- `/reset-password` — Password + confirm password form (reads `?token=` from URL)
+- `/verify-email` — Auto-fires verification on mount (reads `?token=` from URL)
+- `/console` — Dashboard with user name, profile card, org card
+- `/console/profile` — User details (name, email, verified, auth provider, state)
+- `/console/organization` — Org details (name, slug, status, created date)
+- `/console/settings` — Account settings (logout button only)
+
+**UI components:** 13 shadcn/ui components (alert, avatar, button, card, dropdown-menu, input, label, loading-spinner, separator, sheet) built on `@base-ui/react` primitives.
+
+**Missing work:** Console CRUD operations (edit profile, edit org), server-side route protection for `/console`, additional form validation, error boundary improvements, API error display in forms, loading states for data fetching, responsive design polish.
 
 ---
 
@@ -769,6 +910,7 @@ The integration test suite is well-built for what it covers. The test doubles fa
 ### Docker
 
 - `backend/Dockerfile`: Python 3.12-slim + uv, exposes port 8000, runs `python -m app.api.main`
+- `backend/.dockerignore`: Excludes `.venv`, `.git`, `__pycache__`, `*.pyc`, caches, `.env`
 - No multi-stage build (includes build tools in final image)
 - No non-root user
 - No health check in Dockerfile
@@ -908,6 +1050,9 @@ Not deployment-ready. Missing:
 3. **`structlog` configured but unused** — configuration has no effect
 4. **`api_host`/`api_port` settings ignored** — hardcoded in uvicorn.run
 5. **Verification URL in signup response** — raw token leaked in API response
+6. **Frontend hardcodes `blueprint_code: "academy"`** — signup form doesn't let users choose a blueprint
+7. **`.env.example` contains real credentials** — Neon DB URL and Resend API key are committed; should use placeholders
+8. **Client-side-only route protection** — `/console` routes protected only by React context, not server-side middleware
 
 ---
 
@@ -923,15 +1068,18 @@ Ranked by severity:
 | 4 | `Lifecycle` not integrated into FastAPI lifespan | **High** | No graceful shutdown, DB connection leak |
 | 5 | Container `_resolve_annotation` bug with Union types | **High** | Will cause runtime failures for optional dependencies |
 | 6 | No typed domain model — everything is `dict[str, Any]` | **High** | Fragile, no compile-time safety, defeats DDD |
-| 7 | `BusinessObject` aggregate root never subclassed | **Medium** | No invariant validation, no optimistic locking at domain level |
-| 8 | 10+ dead code files (Capability, Policy, Workflow, etc.) | **Medium** | Confusing for new developers, increases cognitive load |
-| 9 | `structlog` configured but unused | **Low** | Misleading configuration |
-| 10 | Email service wired outside DI | **Medium** | Hidden dependency, testability concern |
-| 11 | No rate limiting anywhere | **High** | Vulnerable to abuse |
-| 12 | Duplicate `OutboxEntry`, `EventHandler`, `TypeVar("T")` | **Low** | Code confusion |
-| 13 | `api_host`/`api_port` settings ignored | **Low** | Configuration drift |
-| 14 | Incorrect pagination total in list endpoints | **Low** | Minor functional bug |
-| 15 | Three unused commands (ForgotPassword, RefreshToken, Logout) | **Low** | Dead code |
+| 7 | `.env.example` contains real credentials (Neon DB, Resend API key) | **High** | Security risk — secrets in version control |
+| 8 | `BusinessObject` aggregate root never subclassed | **Medium** | No invariant validation, no optimistic locking at domain level |
+| 9 | 10+ dead code files (Capability, Policy, Workflow, etc.) | **Medium** | Confusing for new developers, increases cognitive load |
+| 10 | `structlog` configured but unused | **Low** | Misleading configuration |
+| 11 | Email service wired outside DI | **Medium** | Hidden dependency, testability concern |
+| 12 | No rate limiting anywhere | **High** | Vulnerable to abuse |
+| 13 | Duplicate `OutboxEntry`, `EventHandler`, `TypeVar("T")` | **Low** | Code confusion |
+| 14 | `api_host`/`api_port` settings ignored | **Low** | Configuration drift |
+| 15 | Incorrect pagination total in list endpoints | **Low** | Minor functional bug |
+| 16 | Three unused commands (ForgotPassword, RefreshToken, Logout) | **Low** | Dead code |
+| 17 | Frontend `/console` routes protected only client-side | **Medium** | No server-side auth guard on protected routes |
+| 18 | Frontend signup hardcodes `blueprint_code: "academy"` | **Low** | Users cannot choose their blueprint |
 
 ---
 
@@ -940,8 +1088,8 @@ Ranked by severity:
 Based solely on the current repository state:
 
 ### Milestone 1: Authorization & Security (Complexity: High)
-**Why:** The application is completely open. Every endpoint is unprotected. This must be fixed before anything else.
-**Tasks:** Implement `get_current_user` FastAPI dependency, protect all admin routes, add role-based access checks, fix CORS configuration.
+**Why:** The application is completely open. Every `/users` and `/organizations` endpoint is unprotected. This must be fixed before anything else.
+**Tasks:** Implement `get_current_user` FastAPI dependency, protect all admin routes, add role-based access checks, fix CORS configuration, add server-side route protection for frontend `/console` routes.
 **Dependencies:** None
 **Risks:** Changing all endpoint signatures; potential breaking changes to existing tests.
 
@@ -969,23 +1117,35 @@ Based solely on the current repository state:
 **Dependencies:** Milestone 1
 **Risks:** Must handle race conditions (concurrent refresh requests).
 
-### Milestone 6: Lifecycle Integration & Graceful Shutdown (Complexity: Low)
+### Milestone 6: Frontend Enhancements (Complexity: Medium)
+**Why:** Console pages are read-only. No CRUD operations for profile or organization.
+**Tasks:** Add profile editing form, organization settings form, proper error handling in forms, loading states, responsive design. Add server-side route protection via Next.js middleware.
+**Dependencies:** Milestone 1 (for auth endpoints to be stable)
+**Risks:** Frontend-backend contract changes.
+
+### Milestone 7: Lifecycle Integration & Graceful Shutdown (Complexity: Low)
 **Why:** Database connections are never properly closed. Background tasks are never cancelled.
 **Tasks:** Integrate `Lifecycle.lifespan()` into FastAPI app, register `Database.close()` as shutdown hook.
 **Dependencies:** None
 **Risks:** Minimal.
 
-### Milestone 7: Fix Container Union Resolution Bug (Complexity: Low)
+### Milestone 8: Fix Container Union Resolution Bug (Complexity: Low)
 **Why:** The `_resolve_annotation` method in the DI container has a bug that prevents Union type annotations from resolving.
 **Tasks:** Fix line 71 to compare `t.__name__ == part` instead of `t.__name__ == annotation`.
 **Dependencies:** None
 **Risks:** Minimal.
 
-### Milestone 8: Remove Dead Code (Complexity: Low)
+### Milestone 9: Remove Dead Code (Complexity: Low)
 **Why:** 10+ files of dead abstractions confuse new developers.
 **Tasks:** Remove or archive `Capability`, `Policy`, `Workflow`, `SubscriberRegistry`, unused commands, `SolutionBlueprint`.
 **Dependencies:** None
 **Risks:** Low, but need to verify no import side effects.
+
+### Milestone 10: Security Hygiene (Complexity: Low)
+**Why:** `.env.example` contains real credentials. JWT dev keys are in the repository.
+**Tasks:** Replace `.env.example` credentials with placeholders, rotate exposed keys, add `.env` to `.gitignore` (verify), add pre-commit hook for secret detection.
+**Dependencies:** None
+**Risks:** Must ensure existing deployments are not affected by key rotation.
 
 ---
 
@@ -995,13 +1155,13 @@ Based solely on the current repository state:
 |---|---|---|
 | **Architecture** | 7/10 | Sound design (DDD, hexagonal, outbox), but large gap between design and implementation. Contracts exist but are unused. |
 | **Maintainability** | 6/10 | Clean module boundaries, good separation. Dragged down by dict-based data, dead code, and 730-line auth_service. |
-| **Security** | 3/10 | Password hashing and JWT are solid. But all admin routes unprotected, no rate limiting, no brute-force protection, CORS misconfigured. |
-| **Testing** | 5/10 | Excellent integration tests for auth. But no unit tests, no coverage reporting, no repository tests, no event system tests. |
+| **Security** | 4/10 | Password hashing, JWT, and Resend email are solid. But all admin routes unprotected, no rate limiting, no brute-force protection, CORS misconfigured, `.env.example` leaks credentials. |
+| **Testing** | 5/10 | Excellent integration tests for auth (30+ tests). But no unit tests, no coverage reporting, no repository tests, no event system tests, no frontend tests. |
 | **Scalability** | 3/10 | Single-process in-memory event bus. No Redis. In-memory rate limiter. No background worker infrastructure. |
-| **Developer Experience** | 6/10 | Good CI, clean structure, helpful README. Dragged down by dead code, misleading configurations, and sparse docs. |
-| **Deployment** | 2/10 | Dockerfile exists but is insecure (root user, no multi-stage). No production compose/K8s. No secret management. No migration automation. |
-| **Documentation** | 7/10 | Excellent runtime spec. Good STATUS.md and README. Dragged down by stale STATUS.md and no API docs. |
-| **Overall** | **4.9/10** | Early prototype with solid architectural foundations but significant gaps in security, deployment, and operational readiness. |
+| **Developer Experience** | 6/10 | Good CI, clean structure, helpful READMEs. Dragged down by dead code, misleading configurations, and sparse docs. |
+| **Deployment** | 2.5/10 | Dockerfile exists with .dockerignore but is insecure (root user, no multi-stage). No production compose/K8s. No secret management. No migration automation. |
+| **Documentation** | 7.5/10 | Excellent runtime spec. Good frontend architecture doc. Good STATUS.md and READMEs. Dragged down by stale STATUS.md and no API docs. |
+| **Overall** | **5.1/10** | Working prototype with authentication, email integration, and frontend scaffolding. Solid architectural foundations but significant gaps in security, deployment, and operational readiness. |
 
 ---
 
@@ -1085,7 +1245,10 @@ Based solely on the current repository state:
 | `platform/organizations/ports/*.py` | Org repository port | Yes | No |
 | `platform/notifications/email_service.py` | Email protocol | Yes | No |
 | `platform/notifications/console_provider.py` | Console email | Yes | No |
-| `platform/notifications/resend_provider.py` | Resend email | Stub | Implement |
+| `platform/notifications/resend_provider.py` | Resend email | Yes | Minor: add retry logic, template versioning |
+| `platform/notifications/emails/__init__.py` | Email templates package | Yes | No |
+| `platform/notifications/emails/verify_email.py` | Verify email template | Yes | No |
+| `platform/notifications/emails/reset_password.py` | Reset password template | Yes | No |
 
 ### Tests
 
@@ -1117,11 +1280,15 @@ Based solely on the current repository state:
 | **Branches** | Single branch (`main`) — no feature branches |
 
 **Latest commits (most recent first):**
-1. `c246648` — feat: enhance signup process with unique slug generation and error handling for email conflicts
-2. `fda23f2` — feat: optimize database event handling and improve session flush timings
-3. `6aa8d65` — feat: implement create methods in identity and organization repositories
-4. `f2cc934` — feat(platform): implement Identity v1
-5. `9022363` — feat: implement identity management repositories and services
+1. `370c2dc` — feat: enhance email verification and resend functionality with organization support and integrate Resend API
+2. `6a2b417` — feat: update environment configuration and enhance email notification templates
+3. `1d2b54e` — feat: add signup form and email verification components
+4. `c246648` — feat: enhance signup process with unique slug generation and error handling for email conflicts
+5. `fda23f2` — feat: optimize database event handling and improve session flush timings in AuthService
+6. `6aa8d65` — feat: implement create methods in identity and organization repositories; update health check and database session management
+7. `f2cc934` — feat(platform): implement Identity v1
+8. `9022363` — feat: implement identity management repositories and services
+9. `ac23c8a` — feat: update backend workflow and structure; add .dockerignore and initial README
 
 **Unfinished work:** None in progress. Working tree is clean.
 
@@ -1131,34 +1298,37 @@ Based solely on the current repository state:
 
 ### What kind of software is this today?
 
-A **backend-only prototype** demonstrating DDD/CQRS/Outbox architectural patterns with a working authentication system and organization management. It is a technical foundation — not a product. There is no frontend, no domain-specific functionality, and no deployment infrastructure.
+A **full-stack prototype** demonstrating DDD/CQRS/Outbox architectural patterns with a working authentication system, organization management, production email integration (Resend), and a functional frontend for auth flows. The backend is a technical foundation with working auth; the frontend provides login/signup/password-reset flows and read-only console pages. No domain-specific functionality exists yet.
 
 ### How far is it from an MVP?
 
 A functional MVP would require at minimum:
 1. Authorization on all endpoints
-2. A frontend (login, signup, dashboard, organization management)
+2. Frontend console CRUD operations (profile editing, organization management)
 3. At least one blueprint implementation (e.g., academy)
 4. Working event dispatch
 5. Rate limiting
 6. Production Docker/deployment setup
-7. Resend email integration
+7. Server-side route protection for frontend
 
-**Estimated effort:** 4–6 weeks of focused engineering for one senior developer, assuming the architectural decisions are locked.
+**Estimated effort:** 3–5 weeks of focused engineering for one senior developer, assuming the architectural decisions are locked. (Reduced from 4–6 weeks due to auth and frontend progress.)
 
 ### How far is it from production?
 
-**8–12 weeks** for a small team (2–3 engineers). The gaps are substantial: no auth middleware, no event dispatch, no frontend, no deployment pipeline, no monitoring, no backup strategy, no load testing, no security audit.
+**6–10 weeks** for a small team (2–3 engineers). The gaps are smaller than before: auth middleware is still needed, but email integration and frontend auth flows are done. Remaining gaps: no auth middleware, no event dispatch, no deployment pipeline, no monitoring, no backup strategy, no load testing, no security audit.
 
 ### If a senior backend engineer joined tomorrow, what would they need to know first?
 
 1. Read `docs/aps/runtime-spec.md` — this is the architectural constitution
-2. Understand the Ports & Adapters pattern used here — each module has `ports/` (interfaces) and `infrastructure/postgres/` (implementations)
-3. Know that the DI container is custom, not a library — resolve via `container.resolve(ServiceClass)`
-4. The `auth_service.py` (~730 lines) is the most critical and complex file — read it thoroughly
-5. Events go to the outbox but are never dispatched — this is a known gap, not a bug
-6. All data flows as `dict[str, Any]` — typed domain objects are designed but not built
-7. Tests use in-memory repositories, not a real database
+2. Read `docs/frontend/architecture.md` — frontend architecture and API contracts
+3. Understand the Ports & Adapters pattern used here — each module has `ports/` (interfaces) and `infrastructure/postgres/` (implementations)
+4. Know that the DI container is custom, not a library — resolve via `container.resolve(ServiceClass)`
+5. The `auth_service.py` (~730 lines) is the most critical and complex file — read it thoroughly
+6. Events go to the outbox but are never dispatched — this is a known gap, not a bug
+7. All data flows as `dict[str, Any]` — typed domain objects are designed but not built
+8. Tests use in-memory repositories, not a real database
+9. Frontend uses Next.js 16 App Router with feature modules — auth is in `features/auth/`
+10. Email is wired outside the DI container via manual setter — this is a known shortcut
 
 ### Prioritized Next 20 Engineering Tasks
 
@@ -1166,11 +1336,11 @@ A functional MVP would require at minimum:
 |---|---|---|
 | 1 | Implement `get_current_user` FastAPI dependency + protect all `/users` and `/organizations` endpoints | High |
 | 2 | Fix CORS: explicit origins instead of `*` with credentials | Low |
-| 3 | Wire `Lifecycle.lifespan()` into FastAPI app for graceful shutdown | Low |
-| 4 | Fix container `_resolve_annotation` Union type bug | Low |
-| 5 | Wire discovered event handlers to EventBus + implement `OutboxDispatcher._dispatch_batch()` | Medium |
-| 6 | Add rate limiting middleware (login, signup, forgot-password) | Medium |
-| 7 | Implement `ResendEmailProvider` | Low |
+| 3 | Add server-side route protection for frontend `/console` routes (Next.js middleware) | Medium |
+| 4 | Wire `Lifecycle.lifespan()` into FastAPI app for graceful shutdown | Low |
+| 5 | Fix container `_resolve_annotation` Union type bug | Low |
+| 6 | Wire discovered event handlers to EventBus + implement `OutboxDispatcher._dispatch_batch()` | Medium |
+| 7 | Add rate limiting middleware (login, signup, forgot-password) | Medium |
 | 8 | Implement refresh token rotation (issue new token on each refresh) | Medium |
 | 9 | Add JTI claim to JWT for token-level revocation | Medium |
 | 10 | Remove dead code: Capability, Policy, Workflow, SubscriberRegistry, unused commands/schemas | Low |
@@ -1182,5 +1352,5 @@ A functional MVP would require at minimum:
 | 16 | Create typed domain aggregates (Organization, User) extending BusinessObject | High |
 | 17 | Add failed-login tracking and account lockout | Medium |
 | 18 | Implement real event handlers (welcome email on signup, audit trail on login) | Medium |
-| 19 | Add `pytest-cov` to CI with coverage threshold | Low |
+| 19 | Replace `.env.example` credentials with placeholders + rotate exposed keys | Low |
 | 20 | Add background cleanup jobs for expired sessions and tokens | Medium |
