@@ -14,14 +14,30 @@ ADX is not a single application. It is a platform that powers multiple
 business solutions. Each solution serves a different type of customer,
 but they all share the same backend.
 
-Think of it like Shopify.
+ADX provides the common capabilities that every business application
+needs — identity, organizations, permissions, notifications, automation,
+and events. Business solutions such as Academy, Clinic, and Salon build
+on those capabilities instead of reimplementing them.
 
-Shopify provides shared capabilities — merchant identity, product catalog,
-payments, notifications. Individual stores are built on top of those
-capabilities. Shopify does not rebuild checkout for every store.
+```
+                        ADX
 
-ADX does the same thing for educational institutes, clinics, salons,
-and gyms.
+                  Shared Platform
+      Identity • Organizations • Events
+      Permissions • Notifications • Files
+
+            │                │
+            │                │
+     ┌──────┴──────┬─────────┴─────────┐
+     │             │                   │
+
+ Academy      Clinic (future)    Salon (future)
+
+     │             │                   │
+
+ academy.     clinic.            salon.
+ adhyayanx.in adhyayanx.in       adhyayanx.in
+```
 
 ---
 
@@ -47,17 +63,32 @@ to the appropriate solution.
 attendance, fees, exams, communication. This is what institute owners
 and staff use daily.
 
-**clinic.adhyayanx.in** — The Clinic solution. Future blueprint.
+**clinic.adhyayanx.in** — The Clinic solution. Future solution.
 Same platform, different business logic.
 
 **console.adhyayanx.in** — Internal operations. Platform administrators
-manage organizations, users, and subscriptions. Not customer-facing.
+manage organizations, users, and subscriptions. Customers never use
+the console. It exists only for ADX employees to operate the platform.
+
+---
+
+## Who uses what?
+
+| User               | Uses                                          |
+| ------------------ | --------------------------------------------- |
+| Visitor            | `adhyayanx.in`                                |
+| Organization owner | `login.adhyayanx.in` → redirected to solution |
+| Staff              | Solution (`academy`, `clinic`, etc.)          |
+| ADX employee       | `console.adhyayanx.in`                        |
 
 ---
 
 ## Backend
 
 All frontends communicate with the same shared platform backend.
+The backend exposes platform capabilities through APIs. Each frontend
+uses only the capabilities it needs, while business-specific features
+are implemented by the corresponding solution.
 
 ```
 adhyayanx.in  ─┐
@@ -150,7 +181,9 @@ Salon has clients and bookings.
 
 The platform handles everything else. This means:
 
-- One login works across all solutions
+- Users authenticate through a shared identity system. After
+  authentication, they are redirected only to the solutions they are
+  authorized to access.
 - One notification system serves all customers
 - One permission model secures everything
 - One event system connects all modules
@@ -160,9 +193,9 @@ Building this once is hard. Building it five times is impossible.
 
 ---
 
-## The blueprint model
+## Solutions
 
-A blueprint is a business solution built on the ADX platform.
+A solution is a business application built on the ADX platform.
 
 ```
 Platform (shared)
@@ -172,28 +205,43 @@ Platform (shared)
 ├── Notifications
 ├── Events
 │
-├── Academy Blueprint
+├── Academy Solution
 │   ├── Students
 │   ├── Attendance
 │   ├── Fees
 │   ├── Exams
 │   └── Communication
 │
-├── Clinic Blueprint (future)
+├── Clinic Solution (future)
 │   ├── Patients
 │   ├── Appointments
 │   ├── Prescriptions
 │   └── Billing
 │
-└── Salon Blueprint (future)
+└── Salon Solution (future)
     ├── Clients
     ├── Bookings
     ├── Services
     └── Payments
 ```
 
-Each blueprint defines its own domain model. The platform provides
-the foundation. New blueprints can be added without changing the platform.
+Each solution defines its own domain model. The platform provides
+the foundation. New solutions can be added without changing the platform.
+
+---
+
+## What this document is not
+
+This document explains the structure of the ADX platform.
+
+It does not describe:
+
+- Database schema
+- Deployment infrastructure
+- API endpoints
+- Internal implementation details
+
+Those are covered by the architecture and runtime documentation.
 
 ---
 
