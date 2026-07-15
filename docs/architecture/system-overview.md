@@ -245,6 +245,32 @@ Those are covered by the architecture and runtime documentation.
 
 ---
 
+## Design Philosophy
+
+ADX helps businesses make better operational decisions by organizing
+the information they already have.
+
+Every blueprint follows this philosophy.
+
+The software does not replace professional judgment.
+It provides the right information, in the right context,
+at the right time.
+
+Whether the user is admitting a student,
+treating a patient,
+collecting a payment,
+or reviewing the day's operations,
+the goal is always the same:
+
+Help people understand what is happening,
+why it matters,
+and what they should do next.
+
+Good software is measured not by how many features it has,
+but by how confidently people can make decisions using it.
+
+---
+
 ## Further reading
 
 - [Engineering Principles](principles.md) — How we make decisions

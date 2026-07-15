@@ -97,3 +97,20 @@ Before introducing a new abstraction, ask:
 
 If these questions cannot be answered clearly,
 the abstraction probably should not be introduced.
+
+---
+
+## 8. Software informs judgment
+
+Software exists to help people make better decisions,
+not to make decisions for them.
+
+Before building a feature, ask:
+
+Who is trying to decide what?
+
+What information do they need to make that decision?
+
+If the feature does not help someone understand a situation,
+make a decision, or carry out a business action,
+question whether it belongs in the product.
