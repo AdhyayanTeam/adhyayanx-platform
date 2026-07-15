@@ -1,3 +1,24 @@
+"""Immutable intent to change system state.
+
+Purpose:
+    Encodes what the caller wants to happen. Every command targets
+    exactly one aggregate and is processed by exactly one handler.
+
+Responsibilities:
+    - Carry a unique command_id for idempotency
+    - Declare command_type for routing and audit
+    - Carry the data needed to execute the change
+
+Does NOT do:
+    - Validate business rules (handlers do that)
+    - Persist changes (repositories do that)
+    - Produce side effects (services coordinate that)
+
+Who depends on this:
+    Every service method accepts a Command subclass as input.
+    Routers create commands from HTTP requests.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

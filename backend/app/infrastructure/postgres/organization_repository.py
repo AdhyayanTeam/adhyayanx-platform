@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.postgres.tables import OrganizationTable
 from app.modules.platform.organizations.ports.organization_repository import OrganizationRepository
+from app.shared.lifecycle import LifecycleState
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 
 class PostgresOrganizationRepository(OrganizationRepository):
@@ -47,7 +49,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 id=organization["id"],
                 name=organization["name"],
                 slug=organization["slug"],
-                lifecycle_state=organization.get("lifecycle_state", "active"),
+                lifecycle_state=organization.get("lifecycle_state", LifecycleState.ACTIVE),
                 version=organization.get("version", 1),
                 extra=organization.get("metadata", {}),
                 created_at=organization.get("created_at"),
@@ -61,7 +63,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
             id=organization["id"],
             name=organization["name"],
             slug=organization["slug"],
-            lifecycle_state=organization.get("lifecycle_state", "active"),
+            lifecycle_state=organization.get("lifecycle_state", LifecycleState.ACTIVE),
             version=organization.get("version", 1),
             extra=organization.get("metadata", {}),
             created_at=organization.get("created_at"),

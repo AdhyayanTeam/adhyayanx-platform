@@ -1,3 +1,17 @@
+"""Async database connection and session management.
+
+Purpose:
+    Manages the SQLAlchemy async engine, connection pool, and session factory.
+    Every repository receives a session from Database.session().
+
+Does NOT do:
+    - Define tables (tables.py handles that)
+    - Run migrations (Alembic handles that)
+
+Who depends on this:
+    Every service and repository that touches the database.
+"""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +30,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.kernel.config.loader import Settings
+from app.shared.database import DB_MAX_OVERFLOW, DB_POOL_RECYCLE_SECONDS, DB_POOL_SIZE
 
 logger = logging.getLogger("app.infrastructure.postgres.database")
 
@@ -41,10 +56,10 @@ class Database:
         self.engine = create_async_engine(
             settings.database_url,
             echo=settings.debug,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=DB_POOL_SIZE,
+            max_overflow=DB_MAX_OVERFLOW,
             pool_pre_ping=True,
-            pool_recycle=1800,
+            pool_recycle=DB_POOL_RECYCLE_SECONDS,
             json_serializer=lambda v: json.dumps(v, default=_json_default),
         )
         self.session_factory = async_sessionmaker(

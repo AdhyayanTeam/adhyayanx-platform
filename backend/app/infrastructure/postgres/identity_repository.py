@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.postgres.tables import UserTable
 from app.modules.platform.identity.ports.identity_repository import IdentityRepository
+from app.shared.lifecycle import LifecycleState
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 
 class PostgresIdentityRepository(IdentityRepository):
@@ -49,7 +51,7 @@ class PostgresIdentityRepository(IdentityRepository):
                 name=user["name"],
                 password_hash=user.get("password_hash"),
                 is_verified=user.get("is_verified", False),
-                lifecycle_state=user.get("lifecycle_state", "active"),
+                lifecycle_state=user.get("lifecycle_state", LifecycleState.ACTIVE),
                 auth_provider=user.get("auth_provider", "email"),
                 auth_provider_id=user.get("auth_provider_id"),
                 version=user.get("version", 1),
@@ -68,7 +70,7 @@ class PostgresIdentityRepository(IdentityRepository):
             name=user["name"],
             password_hash=user.get("password_hash"),
             is_verified=user.get("is_verified", False),
-            lifecycle_state=user.get("lifecycle_state", "active"),
+            lifecycle_state=user.get("lifecycle_state", LifecycleState.ACTIVE),
             auth_provider=user.get("auth_provider", "email"),
             auth_provider_id=user.get("auth_provider_id"),
             version=user.get("version", 1),

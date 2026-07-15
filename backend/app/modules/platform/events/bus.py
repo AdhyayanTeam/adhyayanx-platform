@@ -1,3 +1,19 @@
+"""In-memory event bus for dispatching domain events to handlers.
+
+Purpose:
+    Routes published events to all registered handlers for that event type.
+    This is the synchronous dispatch layer — handlers are awaited sequentially.
+
+Does NOT do:
+    - Persist events (the outbox handles that)
+    - Guarantee delivery (fire-and-forget from the publisher)
+    - Handle retries (failed handlers are logged and skipped)
+
+Who depends on this:
+    Publisher wraps this bus and adds outbox integration.
+    Services publish events through Publisher, which delegates here.
+"""
+
 from __future__ import annotations
 
 import logging

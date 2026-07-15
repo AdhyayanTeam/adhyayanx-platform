@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import structlog
 from fastapi import FastAPI
@@ -13,6 +14,9 @@ from app.api.middleware.logging import LoggingMiddleware
 from app.api.routers import register_routers
 from app.kernel.bootstrap import Bootstrap
 from app.kernel.config.loader import Settings
+
+if TYPE_CHECKING:
+    from app.modules.platform.notifications.email_service import EmailService
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -40,7 +44,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -53,7 +56,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     bootstrap.configure()
     app.state.container = bootstrap.container
 
-    # Wire email service into AuthService
     email_service = _build_email_service(settings)
     from app.modules.platform.identity.auth_service import AuthService
     auth_service = bootstrap.container.resolve(AuthService)
@@ -62,7 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-def _build_email_service(settings: Settings) -> object:
+def _build_email_service(settings: Settings) -> EmailService:
     provider = settings.email_provider
     if provider == "resend":
         from app.modules.platform.notifications.resend_provider import (

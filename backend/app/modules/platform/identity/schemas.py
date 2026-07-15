@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+
+from app.modules.platform.organizations.schemas import OrganizationResponse
 
 
 class UserResponse(BaseModel):
@@ -18,19 +20,9 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
 
-class OrganizationResponse(BaseModel):
-    id: UUID
-    name: str
-    slug: str
-    lifecycle_state: str
-    version: int
-    created_at: datetime
-    updated_at: datetime
-
-
 class CreateUserRequest(BaseModel):
     organization_id: UUID
-    email: str = Field(..., pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    email: EmailStr
     name: str = Field(..., min_length=1, max_length=255)
     auth_provider: str = Field(default="email")
     auth_provider_id: str | None = None
@@ -48,7 +40,7 @@ class SignupRequest(BaseModel):
     organization_name: str = Field(..., min_length=1, max_length=255)
     blueprint_code: str = Field(..., min_length=1, max_length=50)
     owner_name: str = Field(..., min_length=1, max_length=255)
-    email: str = Field(..., pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
 
 

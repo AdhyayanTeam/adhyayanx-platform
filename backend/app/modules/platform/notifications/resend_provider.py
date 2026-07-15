@@ -1,3 +1,18 @@
+"""Production email provider — sends emails via Resend API.
+
+Purpose:
+    Renders email templates and sends them through Resend's transactional
+    email service. Used in production when email_provider="resend".
+
+Does NOT do:
+    - Template rendering (each template has its own renderer)
+    - Rate limiting (Resend handles that)
+
+Who depends on this:
+    AuthService calls EmailService.send() during signup and
+    forgot-password flows.
+"""
+
 from __future__ import annotations
 
 import asyncio

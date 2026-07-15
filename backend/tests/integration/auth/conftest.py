@@ -13,6 +13,8 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
+
 from app.kernel.config.loader import Settings
 from app.modules.platform.contracts.event import DomainEvent
 from app.modules.platform.events.bus import EventBus
@@ -64,7 +66,7 @@ class DictIdentityRepository(IdentityRepository):
         return id in self._store
 
     async def list(
-        self, organization_id: UUID, skip: int = 0, limit: int = 100
+        self, organization_id: UUID, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT
     ) -> list[dict[str, Any]]:
         return [
             u for u in self._store.values()
@@ -180,7 +182,7 @@ class DictVerificationTokenRepository(VerificationTokenRepository):
                 return t
         return None
 
-    async def mark_used(self, id: Any) -> None:
+    async def mark_used(self, id: UUID) -> None:
         if id in self._store:
             self._store[id]["used_at"] = datetime.now(UTC)
 
@@ -210,7 +212,7 @@ class DictOrganizationRepository:
     async def exists_by_slug(self, slug: str) -> bool:
         return any(org["slug"] == slug for org in self._store.values())
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+    async def list(self, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT) -> list[dict[str, Any]]:
         return list(self._store.values())[skip : skip + limit]
 
 

@@ -1,0 +1,4 @@
+"""Event outbox constants."""
+
+OUTBOX_MAX_RETRIES = 5
+OUTBOX_POLL_INTERVAL_SECONDS = 0.1

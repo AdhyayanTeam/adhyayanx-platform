@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.shared.outbox import OUTBOX_MAX_RETRIES, OUTBOX_POLL_INTERVAL_SECONDS
+
 logger = logging.getLogger("app.modules.platform.events.outbox")
 
 
@@ -21,7 +23,7 @@ class OutboxEntry:
     metadata: dict[str, Any] = field(default_factory=dict)
     status: str = "pending"
     retry_count: int = 0
-    max_retries: int = 5
+    max_retries: int = OUTBOX_MAX_RETRIES
     last_error: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     processed_at: datetime | None = None
@@ -31,7 +33,7 @@ class OutboxEntry:
 class OutboxDispatcher:
     """Polls outbox table and dispatches events to handlers."""
 
-    POLL_INTERVAL = 0.1
+    POLL_INTERVAL = OUTBOX_POLL_INTERVAL_SECONDS
 
     def __init__(self) -> None:
         self._running = False

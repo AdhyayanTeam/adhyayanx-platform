@@ -1,3 +1,16 @@
+"""Persistence interface for organization roles.
+
+Purpose:
+    Stores the roles defined within an organization (admin, member, viewer, etc.).
+    Each role maps to a set of permissions.
+
+Does NOT do:
+    - Assign roles to users (MembershipRepository handles that)
+
+Who depends on this:
+    AuthService assigns the default 'owner' role during signup.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

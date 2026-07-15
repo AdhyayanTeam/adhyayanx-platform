@@ -17,6 +17,7 @@ from app.modules.platform.identity.schemas import (
     UserResponse,
 )
 from app.modules.platform.identity.service import IdentityService
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 router = APIRouter(prefix="/users", tags=["identity"])
 
@@ -88,7 +89,7 @@ async def reactivate_user(
 async def list_users(
     organization_id: UUID,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = DEFAULT_PAGE_LIMIT,
     service: IdentityService = Depends(get_service),
 ) -> dict[str, Any]:
     items = await service.list(organization_id, skip=skip, limit=limit)

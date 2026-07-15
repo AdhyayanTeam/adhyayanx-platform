@@ -1,8 +1,24 @@
+"""Persistence interface for user identity data.
+
+Purpose:
+    Abstracts how user records are stored and retrieved.
+    IdentityService depends on this, never on the concrete Postgres impl.
+
+Does NOT do:
+    - Enforce password rules (PasswordPolicy handles that)
+    - Issue JWT tokens (TokenService handles that)
+
+Who depends on this:
+    IdentityService, AuthService, and test doubles (DictIdentityRepository).
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
+
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 
 class IdentityRepository(ABC):
@@ -26,7 +42,7 @@ class IdentityRepository(ABC):
 
     @abstractmethod
     async def list(
-        self, organization_id: UUID, skip: int = 0, limit: int = 100
+        self, organization_id: UUID, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT
     ) -> list[dict[str, Any]]: ...
 
     @abstractmethod

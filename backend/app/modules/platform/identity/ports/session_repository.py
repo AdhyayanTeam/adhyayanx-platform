@@ -1,3 +1,17 @@
+"""Persistence interface for refresh token sessions.
+
+Purpose:
+    Tracks active user sessions for refresh token rotation and revocation.
+    Each session stores a hashed refresh token, device info, and last-seen time.
+
+Does NOT do:
+    - Create access tokens (TokenService handles that)
+
+Who depends on this:
+    AuthService creates sessions on login, revokes on logout,
+    and rotates on refresh.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

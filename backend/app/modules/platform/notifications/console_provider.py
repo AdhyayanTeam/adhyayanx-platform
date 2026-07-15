@@ -1,3 +1,12 @@
+"""Development email provider — logs emails to console instead of sending.
+
+Purpose:
+    Allows local development and testing without an email service.
+    Emails are printed to the console in a readable format.
+
+Does NOT actually send emails — use ResendEmailProvider in production.
+"""
+
 from __future__ import annotations
 
 import logging

@@ -1,3 +1,18 @@
+"""Email service interface and message model.
+
+Purpose:
+    Defines the structural contract for sending emails. Implementations
+    (ConsoleEmailProvider, ResendEmailProvider) satisfy this protocol.
+
+Does NOT do:
+    - Template rendering (each template module handles that)
+    - Choose the provider (Settings and main.py wire the right one)
+
+Who depends on this:
+    AuthService calls EmailService.send() for verification and
+    password reset emails.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -1,3 +1,17 @@
+"""In-memory rate limiter for API endpoints.
+
+Purpose:
+    Prevents abuse by limiting requests per IP within a time window.
+    Uses a sliding window algorithm with automatic cleanup.
+
+Does NOT do:
+    - Persist rate limit state (resets on server restart)
+    - Work across multiple instances (in-memory only)
+
+Who depends on this:
+    Rate-limited endpoints use rate_limiter_dependency as a FastAPI dependency.
+"""
+
 from __future__ import annotations
 
 import time

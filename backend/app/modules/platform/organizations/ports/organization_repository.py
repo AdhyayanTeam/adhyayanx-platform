@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
 
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
+
 
 class OrganizationRepository(ABC):
     @abstractmethod
@@ -28,4 +30,4 @@ class OrganizationRepository(ABC):
     async def exists_by_slug(self, slug: str) -> bool: ...
 
     @abstractmethod
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]: ...
+    async def list(self, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT) -> list[dict[str, Any]]: ...

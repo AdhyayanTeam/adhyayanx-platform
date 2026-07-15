@@ -1,3 +1,17 @@
+"""Persistence interface for user-organization membership.
+
+Purpose:
+    Tracks which users belong to which organizations and with what role.
+    Membership is the join between User and Organization.
+
+Does NOT do:
+    - Enforce RBAC rules (that's handled at the API layer)
+
+Who depends on this:
+    AuthService creates memberships during signup.
+    IdentityService loads memberships for the /me endpoint.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

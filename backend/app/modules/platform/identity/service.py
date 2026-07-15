@@ -1,3 +1,19 @@
+"""User identity management within an organization.
+
+Purpose:
+    Handles CRUD operations for users — creating, deactivating,
+    reactivating, and listing users within an organization.
+
+Does NOT do:
+    - Authenticate users (AuthService handles signup/login/refresh)
+    - Issue tokens (TokenService handles that)
+    - Send emails (EmailService handles that)
+
+Who depends on this:
+    The identity router exposes these operations as REST endpoints.
+    AuthService delegates user creation here during signup.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -13,6 +29,8 @@ from app.modules.platform.identity.commands import (
     ReactivateUserCommand,
 )
 from app.modules.platform.identity.events import UserCreated, UserDeactivated, UserReactivated
+from app.shared.lifecycle import LifecycleState
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 if TYPE_CHECKING:
     from app.infrastructure.postgres.database import Database
@@ -21,7 +39,7 @@ logger = logging.getLogger("app.modules.platform.identity")
 
 
 class IdentityService:
-    """Domain service for user identity operations."""
+    """Manages user lifecycle within an organization — create, deactivate, reactivate, list."""
 
     def __init__(
         self,
@@ -47,7 +65,7 @@ class IdentityService:
                 "organization_id": command.organization_id,
                 "email": command.email,
                 "name": command.name,
-                "lifecycle_state": "active",
+                "lifecycle_state": LifecycleState.ACTIVE,
                 "auth_provider": command.auth_provider,
                 "auth_provider_id": command.auth_provider_id,
                 "version": 1,
@@ -130,7 +148,7 @@ class IdentityService:
             if user is None:
                 raise AggregateNotFoundError(f"User {command.user_id} not found")
 
-            user["lifecycle_state"] = "active"
+            user["lifecycle_state"] = LifecycleState.ACTIVE
             user["version"] += 1
             user["updated_at"] = datetime.now(UTC)
 
@@ -147,7 +165,7 @@ class IdentityService:
             return user
 
     async def list(
-        self, organization_id: UUID, skip: int = 0, limit: int = 100
+        self, organization_id: UUID, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT
     ) -> list[dict[str, Any]]:
         async with self._db.session() as session:
             from app.infrastructure.postgres.identity_repository import PostgresIdentityRepository

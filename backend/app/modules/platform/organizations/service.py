@@ -1,3 +1,19 @@
+"""Organization management — create, update, delete, list.
+
+Purpose:
+    Handles the organization aggregate lifecycle. Organizations are
+    the top-level tenant — everything else (users, batches, fees)
+    belongs to an organization.
+
+Does NOT do:
+    - Create users (IdentityService handles that)
+    - Manage subscriptions (AuthService handles that during signup)
+
+Who depends on this:
+    The organizations router exposes these as REST endpoints.
+    AuthService creates the initial org during signup.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -13,6 +29,8 @@ from app.modules.platform.organizations.commands import (
     DeleteOrganizationCommand,
     UpdateOrganizationCommand,
 )
+from app.shared.lifecycle import LifecycleState
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 from app.modules.platform.organizations.events import (
     OrganizationCreated,
     OrganizationDeleted,
@@ -27,7 +45,7 @@ logger = logging.getLogger("app.modules.platform.organizations")
 
 
 class OrganizationService:
-    """Domain service for organization operations."""
+    """CRUD operations for the Organization aggregate."""
 
     def __init__(
         self,
@@ -60,7 +78,7 @@ class OrganizationService:
                 "id": org_id,
                 "name": command.name,
                 "slug": command.slug,
-                "lifecycle_state": "active",
+                "lifecycle_state": LifecycleState.ACTIVE,
                 "version": 1,
                 "metadata": command.metadata,
                 "created_at": datetime.now(UTC),
@@ -133,7 +151,7 @@ class OrganizationService:
 
             logger.info("Organization deleted: %s", command.organization_id)
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+    async def list(self, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT) -> list[dict[str, Any]]:
         async with self._db.session() as session:
             repo = self._make_repo(session)
             return await repo.list(skip=skip, limit=limit)

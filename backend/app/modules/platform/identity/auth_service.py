@@ -1,3 +1,21 @@
+"""Authentication and registration orchestration.
+
+Purpose:
+    Coordinates the full signup → verify → login → refresh → logout lifecycle.
+    This is the only service that touches users, orgs, subscriptions,
+    memberships, roles, sessions, and verification tokens in one transaction.
+
+Does NOT do:
+    - Validate passwords (PasswordPolicy handles that)
+    - Issue JWT tokens (TokenService handles that)
+    - Send emails (EmailService handles that, called here as a side effect)
+    - Store data (repositories handle that)
+
+Who depends on this:
+    AuthService is resolved by the auth router and injected into endpoints.
+    IdentityService delegates user creation to AuthService during signup.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -23,7 +41,6 @@ from app.modules.platform.identity.events import (
     EmailVerificationTokenCreated,
     EmailVerified,
     MembershipCreated,
-    OrganizationCreated,
     OrganizationSubscriptionCreated,
     PasswordReset,
     SessionRefreshed,
@@ -33,6 +50,15 @@ from app.modules.platform.identity.events import (
 )
 from app.modules.platform.identity.password_policy import PasswordPolicy
 from app.modules.platform.notifications.email_service import EmailMessage
+from app.modules.platform.organizations.events import OrganizationCreated
+from app.shared.auth import (
+    EMAIL_VERIFICATION_EXPIRY_HOURS,
+    PASSWORD_RESET_EXPIRY_HOURS,
+    SLUG_RETRY_ATTEMPTS,
+    TOKEN_BYTE_LENGTH,
+    TOKEN_HASH_SUFFIX_LENGTH,
+)
+from app.shared.lifecycle import LifecycleState
 
 if TYPE_CHECKING:
     from app.infrastructure.postgres.database import Database
@@ -107,11 +133,18 @@ class AuthService:
         return f"{(perf_counter() - start) * 1000:.1f}ms"
 
     async def signup(self, command: SignupCommand) -> dict[str, Any]:
+        """Create org + owner + subscription in one transaction.
+
+        Why this exists: A new institute owner needs an organization,
+        a user account, a role, a membership, a subscription, and a
+        verification email — all atomically. If any step fails,
+        nothing is persisted.
+        """
         self._password_policy.validate(command.password, context=command.email)
 
         base_slug = _slugify(command.organization_name)
-        for attempt in range(3):
-            slug = base_slug if attempt == 0 else f"{base_slug}-{secrets.token_hex(2)}"
+        for attempt in range(SLUG_RETRY_ATTEMPTS):
+            slug = base_slug if attempt == 0 else f"{base_slug}-{secrets.token_hex(TOKEN_HASH_SUFFIX_LENGTH)}"
             try:
                 return await self._attempt_signup(command, slug)
             except IntegrityError as e:
@@ -126,7 +159,7 @@ class AuthService:
                 raise
 
         raise ConflictError(
-            "Could not create unique organization slug after 3 attempts"
+            f"Could not create unique organization slug after {SLUG_RETRY_ATTEMPTS} attempts"
         )
 
     async def _attempt_signup(
@@ -150,7 +183,7 @@ class AuthService:
                 "id": org_id,
                 "name": command.organization_name,
                 "slug": slug,
-                "lifecycle_state": "active",
+                "lifecycle_state": LifecycleState.ACTIVE,
                 "version": 1,
                 "metadata": {},
                 "created_at": datetime.now(UTC),
@@ -189,7 +222,7 @@ class AuthService:
                 "name": command.owner_name,
                 "password_hash": password_hash,
                 "is_verified": False,
-                "lifecycle_state": "active",
+                "lifecycle_state": LifecycleState.ACTIVE,
                 "auth_provider": "email",
                 "auth_provider_id": None,
                 "version": 1,
@@ -233,7 +266,7 @@ class AuthService:
             timings.append(f"create_subscription={self._ms(t0)}")
 
             t0 = perf_counter()
-            verification_raw = secrets.token_urlsafe(32)
+            verification_raw = secrets.token_urlsafe(TOKEN_BYTE_LENGTH)
             verification_hash = self._token_service.hash_refresh_token(verification_raw)
             token_row_id = uuid4()
             await token_repo.create(
@@ -242,7 +275,7 @@ class AuthService:
                     "user_id": user_id,
                     "token_hash": verification_hash,
                     "purpose": "VERIFY_EMAIL",
-                    "expires_at": datetime.now(UTC) + timedelta(hours=24),
+                    "expires_at": datetime.now(UTC) + timedelta(hours=EMAIL_VERIFICATION_EXPIRY_HOURS),
                     "created_at": datetime.now(UTC),
                 }
             )
@@ -299,7 +332,6 @@ class AuthService:
 
             t0 = perf_counter()
             db_round_trips = get_sql_count()
-        # session commits here — IntegrityError may propagate here
         timings.append(f"commit={self._ms(t0)}")
 
         t0 = perf_counter()
@@ -340,6 +372,11 @@ class AuthService:
         }
 
     async def verify_email(self, command: VerifyEmailCommand) -> dict[str, Any]:
+        """Mark user's email as verified using a one-time token.
+
+        Why this exists: Email verification proves the user owns the
+        email address. Until verified, the user cannot log in.
+        """
         timings: list[str] = []
         t_total = perf_counter()
 
@@ -381,7 +418,6 @@ class AuthService:
 
             t0 = perf_counter()
             db_round_trips = get_sql_count()
-        # session commits here
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
@@ -394,6 +430,12 @@ class AuthService:
         return {"verified": True, "message": "Email verified successfully"}
 
     async def login(self, command: LoginCommand) -> dict[str, Any]:
+        """Validate credentials, rotate tokens, record session.
+
+        Why this exists: Login is more than checking a password — it
+        creates a refresh session, determines the landing URL based on
+        the user's subscriptions, and records device info for revocation.
+        """
         timings: list[str] = []
         t_total = perf_counter()
 
@@ -423,7 +465,7 @@ class AuthService:
 
             if not user["is_verified"]:
                 raise ValidationError("Email not verified. Please check your inbox.")
-            if user["lifecycle_state"] != "active":
+            if user["lifecycle_state"] != LifecycleState.ACTIVE:
                 raise ValidationError("Account is inactive")
 
             t0 = perf_counter()
@@ -491,7 +533,6 @@ class AuthService:
 
             t0 = perf_counter()
             db_round_trips = get_sql_count()
-        # session commits here
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
@@ -563,7 +604,6 @@ class AuthService:
 
             t0 = perf_counter()
             db_round_trips = get_sql_count()
-        # session commits here
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
@@ -596,6 +636,12 @@ class AuthService:
                 logger.info("Logout: user=%s session=%s", sess["user_id"], sess["id"])
 
     async def forgot_password(self, email: str) -> dict[str, Any]:
+        """Generate a password reset token and send it via email.
+
+        Why this exists: Password recovery requires a one-time token
+        sent to the user's email. The response is deliberately identical
+        whether the email exists or not — to prevent email enumeration.
+        """
         reset_raw: str | None = None
         user_id: UUID | None = None
         user_email: str = email
@@ -609,7 +655,7 @@ class AuthService:
             if user is None:
                 return {"email_sent": True, "message": "If the email exists, a reset link was sent"}
 
-            reset_raw = secrets.token_urlsafe(32)
+            reset_raw = secrets.token_urlsafe(TOKEN_BYTE_LENGTH)
             reset_hash = self._token_service.hash_refresh_token(reset_raw)
             await token_repo.create(
                 {
@@ -617,7 +663,7 @@ class AuthService:
                     "user_id": user["id"],
                     "token_hash": reset_hash,
                     "purpose": "RESET_PASSWORD",
-                    "expires_at": datetime.now(UTC) + timedelta(hours=1),
+                    "expires_at": datetime.now(UTC) + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS),
                     "created_at": datetime.now(UTC),
                 }
             )
@@ -648,6 +694,11 @@ class AuthService:
         return {"email_sent": True, "message": "If the email exists, a reset link was sent"}
 
     async def reset_password(self, command: ResetPasswordCommand) -> dict[str, Any]:
+        """Replace password using a valid reset token and revoke all sessions.
+
+        Why this exists: After a password reset, all existing sessions
+        must be revoked to force re-authentication on all devices.
+        """
         self._password_policy.validate(command.new_password)
 
         async with self._db.session() as session:

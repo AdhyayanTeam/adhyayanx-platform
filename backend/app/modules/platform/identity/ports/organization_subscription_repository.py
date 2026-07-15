@@ -1,3 +1,17 @@
+"""Persistence interface for organization subscriptions.
+
+Purpose:
+    Tracks which blueprint (Solution) an organization is subscribed to
+    and the subscription status (active, expired, cancelled).
+
+Does NOT do:
+    - Process payments (future: PaymentService)
+
+Who depends on this:
+    AuthService creates a default subscription during signup.
+    AuthService checks subscription status during login.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

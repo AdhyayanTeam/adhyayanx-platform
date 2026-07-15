@@ -13,6 +13,8 @@ from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
+
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -60,7 +62,7 @@ class DictOrganizationRepository(OrganizationRepository):
     async def exists_by_slug(self, slug: str) -> bool:
         return any(org["slug"] == slug for org in self._store.values())
 
-    async def list(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+    async def list(self, skip: int = 0, limit: int = DEFAULT_PAGE_LIMIT) -> list[dict[str, Any]]:
         return list(self._store.values())[skip : skip + limit]
 
 

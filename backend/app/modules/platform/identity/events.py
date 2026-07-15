@@ -16,11 +16,6 @@ class UserReactivated(DomainEvent):
     aggregate_type: str = "user"
 
 
-class OrganizationCreated(DomainEvent):
-    event_type: str = "organization.created.v1"
-    aggregate_type: str = "organization"
-
-
 class MembershipCreated(DomainEvent):
     event_type: str = "membership.created.v1"
     aggregate_type: str = "membership"

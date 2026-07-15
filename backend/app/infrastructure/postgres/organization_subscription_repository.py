@@ -10,6 +10,7 @@ from app.infrastructure.postgres.tables import OrganizationSubscriptionTable
 from app.modules.platform.identity.ports.organization_subscription_repository import (
     OrganizationSubscriptionRepository,
 )
+from app.shared.lifecycle import LifecycleState
 
 
 class PostgresOrganizationSubscriptionRepository(OrganizationSubscriptionRepository):
@@ -21,7 +22,7 @@ class PostgresOrganizationSubscriptionRepository(OrganizationSubscriptionReposit
             id=subscription["id"],
             organization_id=subscription["organization_id"],
             blueprint_code=subscription["blueprint_code"],
-            status=subscription.get("status", "active"),
+            status=subscription.get("status", LifecycleState.ACTIVE),
             starts_at=subscription.get("starts_at"),
             ends_at=subscription.get("ends_at"),
             created_at=subscription.get("created_at"),
@@ -32,7 +33,7 @@ class PostgresOrganizationSubscriptionRepository(OrganizationSubscriptionReposit
         result = await self._session.execute(
             select(OrganizationSubscriptionTable).where(
                 OrganizationSubscriptionTable.organization_id == organization_id,
-                OrganizationSubscriptionTable.status == "active",
+                OrganizationSubscriptionTable.status == LifecycleState.ACTIVE,
             )
         )
         return [self._to_dict(row) for row in result.scalars().all()]

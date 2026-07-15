@@ -9,6 +9,8 @@ from uuid import UUID
 
 import jwt
 
+from app.shared.auth import REFRESH_TOKEN_BYTE_LENGTH
+
 if TYPE_CHECKING:
     from app.kernel.config.loader import Settings
 
@@ -41,7 +43,7 @@ class TokenService:
         return jwt.encode(payload, self._private_key, algorithm=self._settings.jwt_algorithm)
 
     def create_refresh_token_pair(self) -> tuple[str, str]:
-        raw = secrets.token_urlsafe(48)
+        raw = secrets.token_urlsafe(REFRESH_TOKEN_BYTE_LENGTH)
         hashed = hashlib.sha256(raw.encode()).hexdigest()
         return raw, hashed
 

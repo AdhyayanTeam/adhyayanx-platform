@@ -1,6 +1,21 @@
+"""Authentication endpoints — signup, login, refresh, logout, verify, reset.
+
+Purpose:
+    Translates HTTP requests into Commands and delegates to AuthService.
+    This is the thinnest layer — no business logic, just request parsing.
+
+Does NOT do:
+    - Validate passwords (PasswordPolicy handles that)
+    - Issue tokens (TokenService handles that)
+    - Send emails (EmailService handles that)
+
+Who depends on this:
+    FastAPI mounts this router at /api/v1/auth.
+"""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 
@@ -23,6 +38,9 @@ from app.modules.platform.identity.schemas import (
     VerifyEmailRequest,
 )
 
+if TYPE_CHECKING:
+    from app.modules.platform.identity.auth_service import AuthService
+
 _REFRESH_COOKIE = "refresh_token"
 
 
@@ -31,7 +49,7 @@ def _get_settings(request: Request) -> Settings:
     return container.resolve(Settings)
 
 
-def _get_service(request: Request) -> Any:
+def _get_service(request: Request) -> AuthService:
     from app.modules.platform.identity.auth_service import AuthService
 
     container: Container = request.app.state.container
@@ -64,7 +82,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def signup(
     body: SignupRequest,
     request: Request,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
 ) -> dict[str, Any]:
     command = SignupCommand(
         organization_name=body.organization_name,
@@ -88,7 +106,7 @@ async def login(
     body: LoginRequest,
     request: Request,
     response: Response,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
     settings: Settings = Depends(_get_settings),
 ) -> dict[str, Any]:
     command = LoginCommand(
@@ -115,7 +133,7 @@ async def refresh(
     request: Request,
     response: Response,
     refresh_token: str | None = Cookie(default=None, alias=_REFRESH_COOKIE),
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
     settings: Settings = Depends(_get_settings),
 ) -> dict[str, Any]:
     if not refresh_token:
@@ -136,7 +154,7 @@ async def logout(
     request: Request,
     response: Response,
     refresh_token: str | None = Cookie(default=None, alias=_REFRESH_COOKIE),
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
     settings: Settings = Depends(_get_settings),
 ) -> None:
     if refresh_token:
@@ -147,7 +165,7 @@ async def logout(
 @router.post("/verify-email")
 async def verify_email(
     body: VerifyEmailRequest,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
 ) -> Any:
     command = VerifyEmailCommand(token=body.token)
     return await service.verify_email(command)
@@ -156,7 +174,7 @@ async def verify_email(
 @router.post("/forgot-password")
 async def forgot_password(
     body: ForgotPasswordRequest,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
 ) -> Any:
     return await service.forgot_password(body.email)
 
@@ -164,7 +182,7 @@ async def forgot_password(
 @router.post("/reset-password")
 async def reset_password(
     body: ResetPasswordRequest,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
 ) -> Any:
     from app.modules.platform.identity.commands import ResetPasswordCommand as RPCmd
 
@@ -175,7 +193,7 @@ async def reset_password(
 @router.get("/me", response_model=MeResponse)
 async def get_me(
     request: Request,
-    service: Any = Depends(_get_service),
+    service: AuthService = Depends(_get_service),
 ) -> Any:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):

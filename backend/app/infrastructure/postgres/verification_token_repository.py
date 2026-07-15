@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +37,7 @@ class PostgresVerificationTokenRepository(VerificationTokenRepository):
         row = result.scalar_one_or_none()
         return self._to_dict(row) if row else None
 
-    async def mark_used(self, id: Any) -> None:
+    async def mark_used(self, id: UUID) -> None:
         await self._session.execute(
             update(EmailVerificationTokenTable)
             .where(EmailVerificationTokenTable.id == id)

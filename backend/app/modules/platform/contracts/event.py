@@ -1,3 +1,24 @@
+"""Something that happened in the domain.
+
+Purpose:
+    Records a fact that other parts of the system may react to.
+    Events are published after state changes, never before.
+
+Responsibilities:
+    - Carry a unique event_id for deduplication
+    - Declare event_type and aggregate_id for routing
+    - Carry the data that downstream handlers need
+
+Does NOT do:
+    - Trigger its own processing (the event bus does that)
+    - Roll back on failure (events are fire-and-forget from the publisher)
+
+Who depends on this:
+    Services publish events after successful state changes.
+    Event handlers subscribe to event types to trigger side effects
+    (send emails, update read models, notify external systems).
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

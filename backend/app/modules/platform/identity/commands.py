@@ -53,26 +53,8 @@ class VerifyEmailCommand(Command):
     token: str
 
 
-class ForgotPasswordCommand(Command):
-    command_type: str = "adx_platform.identity.forgot_password.v1"
-
-    email: str
-
-
 class ResetPasswordCommand(Command):
     command_type: str = "adx_platform.identity.reset_password.v1"
 
     token: str
     new_password: str
-
-
-class RefreshTokenCommand(Command):
-    command_type: str = "adx_platform.identity.refresh_token.v1"
-
-    refresh_token: str
-
-
-class LogoutCommand(Command):
-    command_type: str = "adx_platform.identity.logout.v1"
-
-    refresh_token: str

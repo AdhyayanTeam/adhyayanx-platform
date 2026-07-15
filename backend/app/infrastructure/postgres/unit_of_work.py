@@ -1,3 +1,18 @@
+"""Unit of Work pattern for coordinating repository transactions.
+
+Purpose:
+    Groups multiple repository operations into a single transaction.
+    Either all changes commit together, or all roll back.
+
+Does NOT do:
+    - Publish events (that happens after commit)
+    - Manage connection pooling (Database handles that)
+
+Who depends on this:
+    Future: services that need to coordinate multiple repositories
+    in a single transaction. Not actively used yet.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

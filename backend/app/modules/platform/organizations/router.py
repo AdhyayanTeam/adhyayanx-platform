@@ -18,6 +18,7 @@ from app.modules.platform.organizations.schemas import (
     OrganizationUpdateRequest,
 )
 from app.modules.platform.organizations.service import OrganizationService
+from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -78,7 +79,7 @@ async def delete_organization(
 @router.get("", response_model=OrganizationListResponse)
 async def list_organizations(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = DEFAULT_PAGE_LIMIT,
     service: OrganizationService = Depends(get_service),
 ) -> dict[str, Any]:
     items = await service.list(skip=skip, limit=limit)

@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-
-from app.modules.platform.contracts.event import DomainEvent
-
-EventHandler = Callable[[DomainEvent], None]
+from app.modules.platform.events.ports.event_bus import EventHandler
 
 
 class SubscriberRegistry:

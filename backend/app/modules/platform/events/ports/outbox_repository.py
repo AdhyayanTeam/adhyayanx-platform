@@ -1,3 +1,23 @@
+"""Outbox repository interface for reliable event publishing.
+
+Purpose:
+    Provides at-least-once event delivery by buffering events in the
+    database before dispatching them to the event bus.
+
+Responsibilities:
+    - Append events to the outbox table
+    - Fetch the next batch of pending events
+    - Mark events as processed or dead-lettered
+
+Does NOT do:
+    - Dispatch events (OutboxDispatcher handles that)
+    - Handle retries (OutboxDispatcher increments retry_count)
+
+Who depends on this:
+    UnitOfWork appends events during commit.
+    OutboxDispatcher polls and dispatches pending events.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -5,6 +25,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
+
+from app.shared.outbox import OUTBOX_MAX_RETRIES
 
 
 @dataclass
@@ -17,7 +39,7 @@ class OutboxEntry:
     metadata: dict[str, Any]
     status: str  # pending | processed | failed
     retry_count: int = 0
-    max_retries: int = 5
+    max_retries: int = OUTBOX_MAX_RETRIES
     last_error: str | None = None
     created_at: datetime | None = None
     processed_at: datetime | None = None

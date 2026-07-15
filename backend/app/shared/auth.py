@@ -1,0 +1,11 @@
+"""Authentication and token-related constants."""
+
+# Token generation
+TOKEN_BYTE_LENGTH = 32
+REFRESH_TOKEN_BYTE_LENGTH = 48
+TOKEN_HASH_SUFFIX_LENGTH = 2
+SLUG_RETRY_ATTEMPTS = 3
+
+# Token expiry (hours)
+EMAIL_VERIFICATION_EXPIRY_HOURS = 24
+PASSWORD_RESET_EXPIRY_HOURS = 1
