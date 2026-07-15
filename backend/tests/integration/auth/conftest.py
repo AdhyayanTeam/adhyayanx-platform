@@ -11,6 +11,7 @@ from uuid import UUID
 import httpx
 import pytest
 from fastapi import FastAPI
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
@@ -55,6 +56,9 @@ class DictIdentityRepository(IdentityRepository):
         return None
 
     async def create(self, user: dict[str, Any]) -> None:
+        for existing in self._store.values():
+            if existing["email"] == user["email"]:
+                raise IntegrityError(None, None, Exception("users_email"))
         self._store[user["id"]] = dict(user)
 
     async def save(self, user: dict[str, Any]) -> None:
@@ -206,6 +210,9 @@ class DictOrganizationRepository(OrganizationRepository):
         return None
 
     async def create(self, organization: dict[str, Any]) -> None:
+        for existing in self._store.values():
+            if existing["slug"] == organization["slug"]:
+                raise IntegrityError(None, None, Exception("organizations_slug"))
         self._store[organization["id"]] = dict(organization)
 
     async def save(self, organization: dict[str, Any]) -> None:

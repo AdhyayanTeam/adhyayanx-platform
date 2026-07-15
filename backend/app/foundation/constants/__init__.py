@@ -14,6 +14,7 @@ from app.foundation.constants.database import (
 from app.foundation.constants.outbox import (
     OUTBOX_MAX_RETRIES,
     OUTBOX_POLL_INTERVAL_SECONDS,
+    OutboxStatus,
 )
 from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 
@@ -25,6 +26,7 @@ __all__ = [
     "EMAIL_VERIFICATION_EXPIRY_HOURS",
     "OUTBOX_MAX_RETRIES",
     "OUTBOX_POLL_INTERVAL_SECONDS",
+    "OutboxStatus",
     "PASSWORD_RESET_EXPIRY_HOURS",
     "REFRESH_TOKEN_BYTE_LENGTH",
     "SLUG_RETRY_ATTEMPTS",

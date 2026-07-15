@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from app.foundation.constants.outbox import OUTBOX_MAX_RETRIES
+from app.foundation.constants.outbox import OUTBOX_MAX_RETRIES, OutboxStatus
 
 
 @dataclass
@@ -37,7 +37,7 @@ class OutboxEntry:
     aggregate_id: UUID
     data: dict[str, Any]
     metadata: dict[str, Any]
-    status: str  # pending | processed | failed
+    status: OutboxStatus = OutboxStatus.PENDING
     retry_count: int = 0
     max_retries: int = OUTBOX_MAX_RETRIES
     last_error: str | None = None

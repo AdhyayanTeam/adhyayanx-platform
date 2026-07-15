@@ -37,3 +37,28 @@ class DomainEvent(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     version: int = 1
+
+
+class TraceContext(BaseModel):
+    trace_id: str = Field(default_factory=lambda: uuid4().hex)
+    span_id: str = Field(default_factory=lambda: uuid4().hex[:16])
+
+
+class ActorContext(BaseModel):
+    user_id: UUID | None = None
+    session_id: UUID | None = None
+
+
+class TenantContext(BaseModel):
+    organization_id: UUID | None = None
+    workspace_id: UUID | None = None
+
+
+class EventEnvelope(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    event: DomainEvent
+    headers: dict[str, Any] = Field(default_factory=dict)
+    trace: TraceContext = Field(default_factory=TraceContext)
+    actor: ActorContext = Field(default_factory=ActorContext)
+    tenant: TenantContext = Field(default_factory=TenantContext)

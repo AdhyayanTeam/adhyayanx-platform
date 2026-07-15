@@ -75,11 +75,25 @@ class Database:
         event.listen(sync_engine, "after_cursor_execute", self._on_after_execute)
 
     @staticmethod
-    def _on_before_execute(_conn, _cursor, _statement, _parameters, _context, _executemany):
+    def _on_before_execute(
+        _conn: object,
+        _cursor: object,
+        _statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
         pass
 
     @staticmethod
-    def _on_after_execute(_conn, _cursor, _statement, _parameters, _context, _executemany):
+    def _on_after_execute(
+        _conn: object,
+        _cursor: object,
+        _statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
         _sql_count.set(_sql_count.get() + 1)
 
     async def close(self) -> None:

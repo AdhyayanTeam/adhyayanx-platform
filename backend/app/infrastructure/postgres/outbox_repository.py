@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.foundation.constants.outbox import OutboxStatus
 from app.infrastructure.postgres.tables import OutboxTable
 from app.modules.platform.events.ports.outbox_repository import OutboxEntry, OutboxRepository
 
@@ -71,7 +72,7 @@ class PostgresOutboxRepository(OutboxRepository):
             update(OutboxTable)
             .where(OutboxTable.id == entry_id)
             .values(
-                status="processed",
+                status=OutboxStatus.PROCESSED,
                 processed_at=datetime.now(UTC),
             )
         )
@@ -92,7 +93,7 @@ class PostgresOutboxRepository(OutboxRepository):
             update(OutboxTable)
             .where(OutboxTable.id == entry_id)
             .values(
-                status="dead_letter",
+                status=OutboxStatus.DEAD,
                 last_error=error,
                 processed_at=datetime.now(UTC),
             )

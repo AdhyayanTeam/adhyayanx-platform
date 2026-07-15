@@ -1,33 +1,34 @@
+"""Outbox dispatcher for reliable event publishing.
+
+Purpose:
+    Polls the outbox table for pending events and dispatches them
+    to the event bus. Handles retry logic and dead-lettering.
+
+Responsibilities:
+    - Poll pending events on an interval
+    - Deserialize and dispatch events to handlers
+    - Mark events as processed on success
+    - Increment retry count on failure
+    - Dead-letter events after max retries
+
+Does NOT do:
+    - Write events to the outbox (Publisher handles that)
+    - Guarantee exactly-once delivery (at-least-once via outbox pattern)
+"""
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID, uuid4
 
-from app.foundation.constants.outbox import OUTBOX_MAX_RETRIES, OUTBOX_POLL_INTERVAL_SECONDS
+from app.foundation.constants.outbox import OUTBOX_POLL_INTERVAL_SECONDS
+from app.modules.platform.events.ports.event_bus import EventBus
+from app.modules.platform.events.ports.outbox_repository import OutboxRepository
 
 logger = logging.getLogger("app.modules.platform.events.outbox")
-
-
-@dataclass
-class OutboxEntry:
-    id: UUID = field(default_factory=uuid4)
-    event_type: str = ""
-    aggregate_type: str = ""
-    aggregate_id: UUID | None = None
-    data: dict[str, Any] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    status: str = "pending"
-    retry_count: int = 0
-    max_retries: int = OUTBOX_MAX_RETRIES
-    last_error: str | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    processed_at: datetime | None = None
-    next_retry_at: datetime | None = None
 
 
 class OutboxDispatcher:
@@ -35,7 +36,13 @@ class OutboxDispatcher:
 
     POLL_INTERVAL = OUTBOX_POLL_INTERVAL_SECONDS
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        outbox_repository: OutboxRepository,
+        event_bus: EventBus,
+    ) -> None:
+        self._outbox = outbox_repository
+        self._event_bus = event_bus
         self._running = False
         self._task: asyncio.Task[Any] | None = None
 
@@ -61,6 +68,41 @@ class OutboxDispatcher:
             await asyncio.sleep(self.POLL_INTERVAL)
 
     async def _dispatch_batch(self) -> None:
-        """Override in subclass with actual outbox repository integration."""
-        # To be wired with OutboxRepository.fetch_next_batch
-        pass
+        entries = await self._outbox.fetch_next_batch()
+        for entry in entries:
+            await self._dispatch_one(entry)
+
+    async def _dispatch_one(self, entry: Any) -> None:
+        try:
+            from app.modules.platform.contracts.event import DomainEvent
+
+            event = DomainEvent(**entry.data)
+            await self._event_bus.publish(event)
+            await self._outbox.mark_processed(entry.id)
+        except Exception as exc:
+            await self._handle_failure(entry, exc)
+
+    async def _handle_failure(self, entry: Any, exc: Exception) -> None:
+        error_msg = str(exc)
+        if entry.retry_count + 1 >= entry.max_retries:
+            await self._outbox.dead_letter(entry.id, error_msg)
+            logger.error(
+                "Event dead-lettered after %d retries: %s [%s]",
+                entry.retry_count,
+                entry.event_type,
+                entry.id,
+            )
+        else:
+            import secrets
+
+            backoff = min(2 ** entry.retry_count + secrets.randbelow(100) / 100, 60)
+            next_retry = datetime.now(UTC).timestamp() + backoff
+            next_retry_dt = datetime.fromtimestamp(next_retry, tz=UTC)
+            await self._outbox.increment_retry(entry.id, error_msg, next_retry_dt)
+            logger.warning(
+                "Event dispatch failed (retry %d/%d): %s [%s]",
+                entry.retry_count + 1,
+                entry.max_retries,
+                entry.event_type,
+                entry.id,
+            )

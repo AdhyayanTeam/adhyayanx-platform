@@ -23,18 +23,18 @@ def discover_blueprints(container: Container) -> list[str]:
 
 
 def discover_handlers(container: Container) -> dict[str, list[Any]]:
-    """Discover event handlers across all registered modules."""
+    """Discover event handlers registered by extension blueprints."""
     handlers: dict[str, list[Any]] = {}
-    handler_modules = [
-        "app.modules.platform.events.handlers",
-        "app.modules.platform.organizations.handlers",
-        "app.modules.platform.identity.handlers",
-    ]
-    for module_path in handler_modules:
-        try:
-            module = importlib.import_module(module_path)
-            if hasattr(module, "register_handlers"):
-                module.register_handlers(handlers)
-        except ImportError:
-            continue
+    try:
+        import app.modules.blueprints as blueprints
+    except ImportError:
+        return handlers
+    for _, name, is_pkg in pkgutil.iter_modules(blueprints.__path__):
+        if is_pkg:
+            try:
+                module = importlib.import_module(f"app.modules.blueprints.{name}")
+                if hasattr(module, "register_handlers"):
+                    module.register_handlers(handlers)
+            except ImportError:
+                continue
     return handlers
