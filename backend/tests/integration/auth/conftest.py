@@ -13,8 +13,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
-
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 from app.kernel.config.loader import Settings
 from app.modules.platform.contracts.event import DomainEvent
 from app.modules.platform.events.bus import EventBus
@@ -35,6 +34,9 @@ from app.modules.platform.identity.ports.verification_token_repository import (
     VerificationTokenRepository,
 )
 from app.modules.platform.identity.token_service import TokenService
+from app.modules.platform.organizations.ports.organization_repository import (
+    OrganizationRepository,
+)
 
 PREFIX = "/api/v1"
 
@@ -51,6 +53,9 @@ class DictIdentityRepository(IdentityRepository):
             if user["email"] == email:
                 return user
         return None
+
+    async def create(self, user: dict[str, Any]) -> None:
+        self._store[user["id"]] = dict(user)
 
     async def save(self, user: dict[str, Any]) -> None:
         uid = user["id"]
@@ -187,7 +192,7 @@ class DictVerificationTokenRepository(VerificationTokenRepository):
             self._store[id]["used_at"] = datetime.now(UTC)
 
 
-class DictOrganizationRepository:
+class DictOrganizationRepository(OrganizationRepository):
     def __init__(self) -> None:
         self._store: dict[UUID, dict[str, Any]] = {}
 
@@ -199,6 +204,9 @@ class DictOrganizationRepository:
             if org["slug"] == slug:
                 return org
         return None
+
+    async def create(self, organization: dict[str, Any]) -> None:
+        self._store[organization["id"]] = dict(organization)
 
     async def save(self, organization: dict[str, Any]) -> None:
         self._store[organization["id"]] = dict(organization)
@@ -224,6 +232,9 @@ class MockAsyncSession:
         pass
 
     async def close(self) -> None:
+        pass
+
+    async def flush(self) -> None:
         pass
 
     def add(self, instance: Any) -> None:

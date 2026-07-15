@@ -7,10 +7,9 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.foundation.types import LifecycleState
 from app.infrastructure.postgres.tables import UserTable
 from app.modules.platform.identity.ports.identity_repository import IdentityRepository
-from app.shared.lifecycle import LifecycleState
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 
 class PostgresIdentityRepository(IdentityRepository):

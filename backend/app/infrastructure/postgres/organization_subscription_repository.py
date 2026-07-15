@@ -6,11 +6,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.foundation.types import LifecycleState
 from app.infrastructure.postgres.tables import OrganizationSubscriptionTable
 from app.modules.platform.identity.ports.organization_subscription_repository import (
     OrganizationSubscriptionRepository,
 )
-from app.shared.lifecycle import LifecycleState
 
 
 class PostgresOrganizationSubscriptionRepository(OrganizationSubscriptionRepository):

@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from app.shared.outbox import OUTBOX_MAX_RETRIES
+from app.foundation.constants.outbox import OUTBOX_MAX_RETRIES
 
 
 @dataclass

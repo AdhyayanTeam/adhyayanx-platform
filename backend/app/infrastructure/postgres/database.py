@@ -29,8 +29,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.foundation.constants.database import DB_MAX_OVERFLOW, DB_POOL_RECYCLE_SECONDS, DB_POOL_SIZE
 from app.kernel.config.loader import Settings
-from app.shared.database import DB_MAX_OVERFLOW, DB_POOL_RECYCLE_SECONDS, DB_POOL_SIZE
 
 logger = logging.getLogger("app.infrastructure.postgres.database")
 

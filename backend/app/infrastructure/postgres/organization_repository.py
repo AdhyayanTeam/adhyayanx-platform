@@ -6,10 +6,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.foundation.types import LifecycleState
 from app.infrastructure.postgres.tables import OrganizationTable
 from app.modules.platform.organizations.ports.organization_repository import OrganizationRepository
-from app.shared.lifecycle import LifecycleState
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 
 class PostgresOrganizationRepository(OrganizationRepository):

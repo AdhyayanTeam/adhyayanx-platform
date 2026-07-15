@@ -13,13 +13,12 @@ from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
-
 import httpx
 import pytest
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 from app.kernel.config.loader import Settings
 from app.modules.platform.contracts.event import DomainEvent
 from app.modules.platform.events.bus import EventBus
@@ -45,6 +44,9 @@ class DictOrganizationRepository(OrganizationRepository):
             if org["slug"] == slug:
                 return org
         return None
+
+    async def create(self, organization: dict[str, Any]) -> None:
+        self._store[organization["id"]] = dict(organization)
 
     async def save(self, organization: dict[str, Any]) -> None:
         org_id = organization["id"]
@@ -76,6 +78,9 @@ class MockAsyncSession:
         pass
 
     async def close(self) -> None:
+        pass
+
+    async def flush(self) -> None:
         pass
 
     def add(self, instance: Any) -> None:

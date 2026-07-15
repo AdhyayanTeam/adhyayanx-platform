@@ -29,7 +29,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
-from app.shared.lifecycle import LifecycleState
+from app.foundation.types import LifecycleState
 
 
 class BusinessObject(BaseModel, ABC):

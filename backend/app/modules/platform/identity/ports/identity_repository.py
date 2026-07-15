@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
 
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 
 
 class IdentityRepository(ABC):

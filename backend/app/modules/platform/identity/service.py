@@ -21,7 +21,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 from app.foundation.exceptions.base import AggregateNotFoundError, ValidationError
+from app.foundation.types import LifecycleState
 from app.modules.platform.events.publisher import Publisher
 from app.modules.platform.identity.commands import (
     CreateUserCommand,
@@ -29,8 +31,6 @@ from app.modules.platform.identity.commands import (
     ReactivateUserCommand,
 )
 from app.modules.platform.identity.events import UserCreated, UserDeactivated, UserReactivated
-from app.shared.lifecycle import LifecycleState
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 if TYPE_CHECKING:
     from app.infrastructure.postgres.database import Database

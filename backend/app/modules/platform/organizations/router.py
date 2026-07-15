@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 from app.kernel.container import Container
 from app.modules.platform.organizations.commands import (
     CreateOrganizationCommand,
@@ -18,7 +19,6 @@ from app.modules.platform.organizations.schemas import (
     OrganizationUpdateRequest,
 )
 from app.modules.platform.organizations.service import OrganizationService
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 

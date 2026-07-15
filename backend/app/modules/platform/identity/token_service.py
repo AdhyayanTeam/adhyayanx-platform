@@ -9,7 +9,7 @@ from uuid import UUID
 
 import jwt
 
-from app.shared.auth import REFRESH_TOKEN_BYTE_LENGTH
+from app.foundation.constants.auth import REFRESH_TOKEN_BYTE_LENGTH
 
 if TYPE_CHECKING:
     from app.kernel.config.loader import Settings

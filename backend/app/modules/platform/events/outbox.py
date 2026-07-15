@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.shared.outbox import OUTBOX_MAX_RETRIES, OUTBOX_POLL_INTERVAL_SECONDS
+from app.foundation.constants.outbox import OUTBOX_MAX_RETRIES, OUTBOX_POLL_INTERVAL_SECONDS
 
 logger = logging.getLogger("app.modules.platform.events.outbox")
 

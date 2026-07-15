@@ -29,7 +29,15 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
 
+from app.foundation.constants.auth import (
+    EMAIL_VERIFICATION_EXPIRY_HOURS,
+    PASSWORD_RESET_EXPIRY_HOURS,
+    SLUG_RETRY_ATTEMPTS,
+    TOKEN_BYTE_LENGTH,
+    TOKEN_HASH_SUFFIX_LENGTH,
+)
 from app.foundation.exceptions.base import ConflictError, ValidationError
+from app.foundation.types import LifecycleState
 from app.infrastructure.postgres.database import get_sql_count
 from app.modules.platform.identity.commands import (
     LoginCommand,
@@ -51,14 +59,6 @@ from app.modules.platform.identity.events import (
 from app.modules.platform.identity.password_policy import PasswordPolicy
 from app.modules.platform.notifications.email_service import EmailMessage
 from app.modules.platform.organizations.events import OrganizationCreated
-from app.shared.auth import (
-    EMAIL_VERIFICATION_EXPIRY_HOURS,
-    PASSWORD_RESET_EXPIRY_HOURS,
-    SLUG_RETRY_ATTEMPTS,
-    TOKEN_BYTE_LENGTH,
-    TOKEN_HASH_SUFFIX_LENGTH,
-)
-from app.shared.lifecycle import LifecycleState
 
 if TYPE_CHECKING:
     from app.infrastructure.postgres.database import Database

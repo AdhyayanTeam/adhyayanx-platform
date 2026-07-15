@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 
+from app.foundation.constants.pagination import DEFAULT_PAGE_LIMIT
 from app.kernel.container import Container
 from app.modules.platform.identity.commands import (
     CreateUserCommand,
@@ -17,7 +18,6 @@ from app.modules.platform.identity.schemas import (
     UserResponse,
 )
 from app.modules.platform.identity.service import IdentityService
-from app.shared.pagination import DEFAULT_PAGE_LIMIT
 
 router = APIRouter(prefix="/users", tags=["identity"])
 
