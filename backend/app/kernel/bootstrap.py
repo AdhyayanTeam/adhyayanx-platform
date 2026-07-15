@@ -41,12 +41,18 @@ class Bootstrap:
         self.container.register_instance(Database, db)
 
     def _wire_event_system(self) -> None:
+        from typing import Any
+
+        from app.infrastructure.postgres.outbox_repository import PostgresOutboxRepository
         from app.modules.platform.events.bus import EventBus
         from app.modules.platform.events.ports.event_bus import EventBus as EventBusInterface
         from app.modules.platform.events.publisher import Publisher
 
+        def _outbox_factory(session: Any) -> Any:
+            return PostgresOutboxRepository(session)
+
         self._event_bus = EventBus()
-        publisher = Publisher()
+        publisher = Publisher(outbox_factory=_outbox_factory)
 
         self.container.register_instance(EventBusInterface, self._event_bus)  # type: ignore[type-abstract]
         self.container.register_instance(Publisher, publisher)

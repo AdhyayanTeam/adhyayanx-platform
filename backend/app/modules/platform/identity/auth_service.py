@@ -21,7 +21,6 @@ from __future__ import annotations
 import logging
 import re
 import secrets
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -38,7 +37,6 @@ from app.foundation.constants.auth import (
 )
 from app.foundation.exceptions.base import ConflictError, ValidationError
 from app.foundation.types import LifecycleState
-from app.infrastructure.postgres.database import get_sql_count
 from app.modules.platform.identity.commands import (
     LoginCommand,
     ResetPasswordCommand,
@@ -71,34 +69,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger("app.modules.platform.identity.auth_service")
 
 
-def _default_repo_factory(session: Any) -> dict[str, Any]:
-    from app.infrastructure.postgres.identity_repository import PostgresIdentityRepository
-    from app.infrastructure.postgres.membership_repository import (
-        PostgresMembershipRepository,
-    )
-    from app.infrastructure.postgres.organization_repository import (
-        PostgresOrganizationRepository,
-    )
-    from app.infrastructure.postgres.organization_role_repository import (
-        PostgresOrganizationRoleRepository,
-    )
-    from app.infrastructure.postgres.organization_subscription_repository import (
-        PostgresOrganizationSubscriptionRepository,
-    )
-    from app.infrastructure.postgres.session_repository import PostgresSessionRepository
-    from app.infrastructure.postgres.verification_token_repository import (
-        PostgresVerificationTokenRepository,
-    )
+class RepositoryFactory:
+    """Marker type for the repository factory callable.
 
-    return {
-        "user": PostgresIdentityRepository(session),
-        "org": PostgresOrganizationRepository(session),
-        "role": PostgresOrganizationRoleRepository(session),
-        "membership": PostgresMembershipRepository(session),
-        "sub": PostgresOrganizationSubscriptionRepository(session),
-        "session": PostgresSessionRepository(session),
-        "token": PostgresVerificationTokenRepository(session),
-    }
+    The composition root registers an instance of this type (a callable
+    that takes a session and returns a dict of repositories). AuthService
+    resolves it from the container.
+    """
+
+    def __call__(self, session: Any) -> dict[str, Any]:
+        raise NotImplementedError
 
 
 class AuthService:
@@ -111,7 +91,7 @@ class AuthService:
         password_policy: PasswordPolicy,
         settings: Settings,
         email_service: EmailService | None = None,
-        repo_factory: Callable[[Any], dict[str, Any]] | None = None,
+        repo_factory: RepositoryFactory | None = None,
     ) -> None:
         self._db = database
         self._publisher = publisher
@@ -120,9 +100,11 @@ class AuthService:
         self._password_policy = password_policy
         self._settings = settings
         self._email_service = email_service
-        self._repo_factory = repo_factory or _default_repo_factory
+        self._repo_factory = repo_factory
 
     def _make_repos(self, session: Any) -> dict[str, Any]:
+        if self._repo_factory is None:
+            raise RuntimeError("AuthService requires repo_factory to be provided")
         return self._repo_factory(session)
 
     def set_email_service(self, service: Any) -> None:
@@ -331,7 +313,6 @@ class AuthService:
             timings.append(f"publish_events={self._ms(t0)}")
 
             t0 = perf_counter()
-            db_round_trips = get_sql_count()
         timings.append(f"commit={self._ms(t0)}")
 
         t0 = perf_counter()
@@ -357,8 +338,7 @@ class AuthService:
 
         total_ms = self._ms(t_total)
         logger.info(
-            "signup.profile db_round_trips=%d %s TOTAL=%s",
-            db_round_trips,
+            "signup.profile %s TOTAL=%s",
             " ".join(timings),
             total_ms,
         )
@@ -417,13 +397,11 @@ class AuthService:
             timings.append(f"publish_events={self._ms(t0)}")
 
             t0 = perf_counter()
-            db_round_trips = get_sql_count()
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
         logger.info(
-            "verify_email.profile db_round_trips=%d %s TOTAL=%s",
-            db_round_trips,
+            "verify_email.profile %s TOTAL=%s",
             " ".join(timings),
             total_ms,
         )
@@ -532,13 +510,11 @@ class AuthService:
             timings.append(f"publish_events={self._ms(t0)}")
 
             t0 = perf_counter()
-            db_round_trips = get_sql_count()
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
         logger.info(
-            "login.profile db_round_trips=%d %s TOTAL=%s",
-            db_round_trips,
+            "login.profile %s TOTAL=%s",
             " ".join(timings),
             total_ms,
         )
@@ -603,13 +579,11 @@ class AuthService:
             timings.append(f"publish_events={self._ms(t0)}")
 
             t0 = perf_counter()
-            db_round_trips = get_sql_count()
         timings.append(f"commit={self._ms(t0)}")
 
         total_ms = self._ms(t_total)
         logger.info(
-            "refresh.profile db_round_trips=%d %s TOTAL=%s",
-            db_round_trips,
+            "refresh.profile %s TOTAL=%s",
             " ".join(timings),
             total_ms,
         )

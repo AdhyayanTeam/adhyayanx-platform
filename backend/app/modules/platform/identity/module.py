@@ -17,12 +17,42 @@ class IdentityModule(PlatformModule):
     name = "identity"
 
     def configure(self, container: Container) -> None:
-        from app.modules.platform.identity.auth_service import AuthService
+        from app.modules.platform.identity.auth_service import AuthService, RepositoryFactory
         from app.modules.platform.identity.navigation_service import NavigationService
         from app.modules.platform.identity.password_policy import PasswordPolicy
         from app.modules.platform.identity.service import IdentityService
         from app.modules.platform.identity.token_service import TokenService
 
+        def _repo_factory(session: Any) -> dict[str, Any]:
+            from app.infrastructure.postgres.identity_repository import PostgresIdentityRepository
+            from app.infrastructure.postgres.membership_repository import (
+                PostgresMembershipRepository,
+            )
+            from app.infrastructure.postgres.organization_repository import (
+                PostgresOrganizationRepository,
+            )
+            from app.infrastructure.postgres.organization_role_repository import (
+                PostgresOrganizationRoleRepository,
+            )
+            from app.infrastructure.postgres.organization_subscription_repository import (
+                PostgresOrganizationSubscriptionRepository,
+            )
+            from app.infrastructure.postgres.session_repository import PostgresSessionRepository
+            from app.infrastructure.postgres.verification_token_repository import (
+                PostgresVerificationTokenRepository,
+            )
+
+            return {
+                "user": PostgresIdentityRepository(session),
+                "org": PostgresOrganizationRepository(session),
+                "role": PostgresOrganizationRoleRepository(session),
+                "membership": PostgresMembershipRepository(session),
+                "sub": PostgresOrganizationSubscriptionRepository(session),
+                "session": PostgresSessionRepository(session),
+                "token": PostgresVerificationTokenRepository(session),
+            }
+
+        container.register_instance(RepositoryFactory, _repo_factory)
         container.register(IdentityService, IdentityService)
         container.register(AuthService, AuthService)
         container.register(TokenService, TokenService)

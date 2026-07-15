@@ -95,14 +95,14 @@ class MockDatabase:
         yield MockAsyncSession()  # type: ignore[misc]
 
 
-class RecordingPublisher(Publisher):
-    """Publisher that captures events and forwards them to the EventBus."""
+class RecordingPublisher:
+    """Test double: captures events and forwards to EventBus, bypassing outbox."""
 
     def __init__(self, bus: EventBus) -> None:
         self.published: list[DomainEvent] = []
         self._bus = bus
 
-    async def publish(self, event: DomainEvent, _session: AsyncSession) -> None:
+    async def publish(self, event: DomainEvent, _session: Any) -> None:
         self.published.append(event)
         await self._bus.publish(event)
 
