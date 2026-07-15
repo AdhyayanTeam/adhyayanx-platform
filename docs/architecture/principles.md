@@ -8,7 +8,7 @@
 
 ## 1. Business services describe business decisions
 
-Business services are responsible for business decisions.
+Business services describe business decisions.
 
 They should not manage database sessions, transactions, framework objects,
 or infrastructure details.

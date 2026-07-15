@@ -47,7 +47,7 @@ Each subdomain serves a specific purpose:
 
 ```
 adhyayanx.in              Marketing website
-login.adhyayanx.in        Identity portal (signup, login, verify)
+app.adhyayanx.in          Platform home (signup, login, profile, settings)
 academy.adhyayanx.in      Academy solution
 clinic.adhyayanx.in       Clinic solution (future)
 console.adhyayanx.in      Internal operations
@@ -55,8 +55,9 @@ console.adhyayanx.in      Internal operations
 
 **adhyayanx.in** — The public face. Explains what ADX is. Drives signups.
 
-**login.adhyayanx.in** — Where users authenticate. Signup, login,
-email verification, password reset. After login, the user is redirected
+**app.adhyayanx.in** — The user's platform home. Signup, login,
+email verification, password reset, profile, organization switcher,
+and personal settings. After login, the user is redirected
 to the appropriate solution.
 
 **academy.adhyayanx.in** — The Academy solution. Student management,
@@ -77,7 +78,7 @@ the console. It exists only for ADX employees to operate the platform.
 | User               | Uses                                          |
 | ------------------ | --------------------------------------------- |
 | Visitor            | `adhyayanx.in`                                |
-| Organization owner | `login.adhyayanx.in` → redirected to solution |
+| Organization owner | `app.adhyayanx.in` → redirected to solution   |
 | Staff              | Solution (`academy`, `clinic`, etc.)          |
 | ADX employee       | `console.adhyayanx.in`                        |
 
@@ -93,7 +94,7 @@ are implemented by the corresponding solution.
 ```
 adhyayanx.in  ─┐
                │
-login.adhyayanx.in  ─┤
+app.adhyayanx.in  ─┤
                │
 academy.adhyayanx.in ─┤──── Platform Backend
                │
@@ -129,7 +130,7 @@ Marketing site (adhyayanx.in)
 User signs up
     │
     ▼
-Identity portal (login.adhyayanx.in)
+Identity portal (app.adhyayanx.in)
     │
     ├── Organization created
     ├── Owner account created
