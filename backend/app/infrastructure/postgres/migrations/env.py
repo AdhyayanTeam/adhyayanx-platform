@@ -7,6 +7,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.infrastructure.postgres.tables import Base
+import app.infrastructure.postgres.academy_tables  # noqa: F401
 from app.kernel.config.loader import Settings
 
 config = context.config

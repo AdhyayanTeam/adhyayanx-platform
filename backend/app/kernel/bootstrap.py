@@ -66,11 +66,13 @@ class Bootstrap:
         from app.modules.platform.identity.module import IdentityModule
         from app.modules.platform.notifications.module import NotificationsModule
         from app.modules.platform.organizations.module import OrganizationModule
+        from app.modules.blueprints.academy.catalog.module import AcademyCatalogModule
 
         modules: list[PlatformModule] = [
             IdentityModule(),
             OrganizationModule(),
             NotificationsModule(),
+            AcademyCatalogModule(),
         ]
 
         for module in modules:
