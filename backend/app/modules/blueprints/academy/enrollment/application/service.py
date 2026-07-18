@@ -5,7 +5,9 @@ from datetime import datetime, UTC
 
 from app.infrastructure.postgres.database import Database
 from app.foundation.exceptions.base import ValidationError
+from app.modules.platform.events.publisher import Publisher
 from app.modules.blueprints.academy.enrollment.domain.models import Enrollment, BatchAssignment
+from app.modules.blueprints.academy.enrollment.domain.events import StudentEnrolled, StudentAssignedToBatch
 from app.modules.blueprints.academy.catalog.contracts.course_query import CourseQueryContract
 from app.modules.blueprints.academy.students.contracts.student_query import StudentQueryContract
 from app.modules.blueprints.academy.delivery.contracts.batch_query import BatchQueryContract
@@ -37,12 +39,14 @@ class EnrollmentService:
     def __init__(
         self,
         db: Database,
+        publisher: Publisher,
         repo_factory: EnrollmentRepositoryFactory,
         course_query: CourseQueryContract,
         student_query: StudentQueryContract,
         batch_query: BatchQueryContract,
     ) -> None:
         self._db = db
+        self._publisher = publisher
         self._repo_factory = repo_factory
         self._course_query = course_query
         self._student_query = student_query
@@ -58,20 +62,20 @@ class EnrollmentService:
         if not course:
             raise ValidationError("Course not found.")
 
-        now = datetime.now(UTC)
-        enrollment = Enrollment(
+        enrollment = Enrollment.create(
             id=uuid4(),
             organization_id=cmd.organization_id,
             student_id=cmd.student_id,
             course_id=cmd.course_id,
-            status="active",
-            created_at=now,
-            updated_at=now,
         )
         
         async with self._db.session() as session:
             repo = self._repo_factory(session)
             await repo.save(enrollment)
+            
+            for event in enrollment.pull_events():
+                await self._publisher.publish(event, session)
+            
         return enrollment.id
 
     async def assign_batch(self, cmd: AssignBatchCommand) -> UUID:
@@ -94,4 +98,8 @@ class EnrollmentService:
             )
 
             await repo.save(enrollment)
+            
+            for event in enrollment.pull_events():
+                await self._publisher.publish(event, session)
+            
             return assignment.id

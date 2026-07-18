@@ -9,5 +9,6 @@ if TYPE_CHECKING:
 
 class AcademyDeliveryApi(ApiModule):
     def register_routes(self, app: FastAPI, prefix: str) -> None:
-        from app.modules.blueprints.academy.delivery.api.router import router
+        from app.modules.blueprints.academy.delivery.api.router import router, sessions_router
         app.include_router(router, prefix=f"{prefix}/academy")
+        app.include_router(sessions_router, prefix=f"{prefix}/academy")

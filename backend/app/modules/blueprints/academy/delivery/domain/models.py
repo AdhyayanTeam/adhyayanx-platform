@@ -14,3 +14,24 @@ class Batch:
     start_date: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass
+class Session:
+    id: UUID
+    organization_id: UUID
+    batch_id: UUID
+    starts_at: datetime
+    ends_at: datetime
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+@dataclass
+class AttendanceRecord:
+    session_id: UUID
+    student_id: UUID
+    organization_id: UUID
+    status: str
+    created_at: datetime
+    updated_at: datetime

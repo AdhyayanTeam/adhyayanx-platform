@@ -53,6 +53,15 @@ async def test_enrollment_happy_path(async_client: httpx.AsyncClient, app_with_d
         
         assign_result = await session.execute(text("SELECT batch_id FROM academy_batch_assignments WHERE enrollment_id = :id"), {"id": enrollment_id})
         assert str(assign_result.scalar_one_or_none()) == batch_id
+        
+        # Verify Outbox Events
+        outbox_result = await session.execute(
+            text("SELECT event_type FROM event_outbox WHERE aggregate_id = :agg_id ORDER BY created_at ASC"), 
+            {"agg_id": enrollment_id}
+        )
+        events = [row.event_type for row in outbox_result.fetchall()]
+        assert "academy.enrollment.StudentEnrolled" in events
+        assert "academy.enrollment.StudentAssignedToBatch" in events
 
 
 @pytest.mark.asyncio
@@ -118,3 +127,32 @@ async def test_enrollment_wrong_tenant(async_client: httpx.AsyncClient, app_with
     # it won't even find Org B's batch!
     assert assign_resp.status_code == 422
     assert "Batch not found" in assign_resp.text
+
+@pytest.mark.asyncio
+async def test_enrollment_transactional_outbox_atomicity(async_client: httpx.AsyncClient, app_with_db: FastAPI, real_database: Database, monkeypatch: pytest.MonkeyPatch):
+    org_id = str(uuid4())
+    await create_test_organization(real_database, org_id)
+    set_current_user(app_with_db, org_id, ["owner"])
+
+    # Create prerequisites
+    c_resp = await async_client.post(f"{PREFIX}/catalog/courses", json={"title": "Atomic Course"})
+    course_id = c_resp.json()["id"]
+    s_resp = await async_client.post(f"{PREFIX}/students", json={"name": "Atomic Student", "email": "atomic@example.com"})
+    student_id = s_resp.json()["id"]
+
+    from app.modules.platform.events.publisher import Publisher
+    original_publish = Publisher.publish
+    
+    async def failing_publish(*args, **kwargs):
+        raise RuntimeError("Simulated Database/Outbox Failure")
+        
+    monkeypatch.setattr(Publisher, "publish", failing_publish)
+    
+    # Try enrolling, it should fail
+    with pytest.raises(RuntimeError, match="Simulated Database/Outbox Failure"):
+        await async_client.post(f"{PREFIX}/enrollments", json={"student_id": student_id, "course_id": course_id})
+        
+    # Verify rollback
+    async with real_database.session() as session:
+        result = await session.execute(text("SELECT COUNT(*) FROM academy_enrollments WHERE student_id = :sid AND course_id = :cid"), {"sid": student_id, "cid": course_id})
+        assert result.scalar_one() == 0
