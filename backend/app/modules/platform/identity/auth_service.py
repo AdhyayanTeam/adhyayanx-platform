@@ -327,7 +327,7 @@ class AuthService:
                         context={
                             "name": command.owner_name,
                             "organization": command.organization_name,
-                            "verification_url": f"/auth/verify-email?token={verification_raw}",
+                            "verification_url": f"{self._settings.frontend_url}/verify-email?token={verification_raw}",
                         },
                     )
                 )
@@ -346,7 +346,7 @@ class AuthService:
         return {
             "organization": org,
             "user": user,
-            "verification_url": f"/auth/verify-email?token={verification_raw}",
+            "verification_url": f"{self._settings.frontend_url}/verify-email?token={verification_raw}",
             "verification_email_sent": email_sent,
             "message": "Organization created. Please verify your email.",
         }
@@ -645,8 +645,9 @@ class AuthService:
             user_id = user["id"]
             user_email = user["email"]
             logger.info(
-                "Password reset requested: user=%s reset_url=/auth/reset-password?token=%s",
+                "Password reset requested: user=%s reset_url=%s/reset-password?token=%s",
                 user["id"],
+                self._settings.frontend_url,
                 reset_raw,
             )
 
@@ -658,7 +659,7 @@ class AuthService:
                         to=user_email,
                         subject="Reset your password",
                         context={
-                            "reset_url": f"/auth/reset-password?token={reset_raw}",
+                            "reset_url": f"{self._settings.frontend_url}/reset-password?token={reset_raw}",
                         },
                     )
                 )

@@ -4,7 +4,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.api.dependencies import get_current_user
 from app.modules.blueprints.academy.catalog.application.commands import (
@@ -23,6 +23,8 @@ def get_catalog_service(request: Request) -> CatalogService:
 
 
 class CreateCourseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    
     title: str
     description: str | None = None
 

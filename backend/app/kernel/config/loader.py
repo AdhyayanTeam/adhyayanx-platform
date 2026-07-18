@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "adx-platform"
     debug: bool = False
+    frontend_url: str = "http://localhost:3000"
 
     # API
     api_host: str = "0.0.0.0"
