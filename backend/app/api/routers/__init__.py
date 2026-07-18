@@ -13,6 +13,9 @@ def register_routers(app: FastAPI, settings: Settings) -> None:
     from app.modules.platform.identity.api import IdentityApi
     from app.modules.platform.organizations.api import OrganizationApi
     from app.modules.blueprints.academy.catalog.api import AcademyCatalogApi
+    from app.modules.blueprints.academy.students.api import AcademyStudentsApi
+    from app.modules.blueprints.academy.delivery.api import AcademyDeliveryApi
+    from app.modules.blueprints.academy.enrollment.api import AcademyEnrollmentApi
 
     app.include_router(health_router)
 
@@ -20,6 +23,9 @@ def register_routers(app: FastAPI, settings: Settings) -> None:
         IdentityApi(),
         OrganizationApi(),
         AcademyCatalogApi(),
+        AcademyStudentsApi(),
+        AcademyDeliveryApi(),
+        AcademyEnrollmentApi(),
     ]
     for module in api_modules:
         module.register_routes(app, settings.api_prefix)

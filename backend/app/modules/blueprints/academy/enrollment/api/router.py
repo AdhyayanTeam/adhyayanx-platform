@@ -1,0 +1,57 @@
+from typing import Annotated, Any, cast
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, ConfigDict
+
+from app.api.dependencies import get_current_user
+from app.modules.blueprints.academy.enrollment.application.service import EnrollStudentCommand, AssignBatchCommand, EnrollmentService
+
+router = APIRouter(prefix="/enrollments", tags=["academy.enrollments"])
+
+def get_enrollment_service(request: Request) -> EnrollmentService:
+    container = request.app.state.container
+    return cast(EnrollmentService, container.resolve(EnrollmentService))
+
+class EnrollStudentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    
+    student_id: UUID
+    course_id: UUID
+
+class AssignBatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    
+    batch_id: UUID
+
+class ResourceResponse(BaseModel):
+    id: UUID
+
+@router.post("", response_model=ResourceResponse, status_code=201)
+async def enroll_student(
+    request: EnrollStudentRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: EnrollmentService = Depends(get_enrollment_service),
+) -> ResourceResponse:
+    cmd = EnrollStudentCommand(
+        organization_id=UUID(current_user["organization"]["id"]),
+        student_id=request.student_id,
+        course_id=request.course_id,
+    )
+    enrollment_id = await service.enroll_student(cmd)
+    return ResourceResponse(id=enrollment_id)
+
+@router.post("/{enrollment_id}/assign", response_model=ResourceResponse)
+async def assign_batch(
+    enrollment_id: UUID,
+    request: AssignBatchRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: EnrollmentService = Depends(get_enrollment_service),
+) -> ResourceResponse:
+    cmd = AssignBatchCommand(
+        organization_id=UUID(current_user["organization"]["id"]),
+        enrollment_id=enrollment_id,
+        batch_id=request.batch_id,
+    )
+    assignment_id = await service.assign_batch(cmd)
+    return ResourceResponse(id=assignment_id)

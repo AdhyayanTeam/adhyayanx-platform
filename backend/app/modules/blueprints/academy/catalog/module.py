@@ -27,6 +27,10 @@ class AcademyCatalogModule(PlatformModule):
         container.register_instance(CatalogRepositoryFactory, _repo_factory)
         container.register(CatalogService, CatalogService)
 
+        from app.modules.blueprints.academy.catalog.contracts.course_query import CourseQueryContract
+        from app.modules.blueprints.academy.catalog.application.query_service import PostgresCourseQueryService
+        container.register(CourseQueryContract, PostgresCourseQueryService)
+
     def register_handlers(self, subscribe: Any) -> None:
         # Register handlers here if needed later.
         pass

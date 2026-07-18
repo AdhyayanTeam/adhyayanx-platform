@@ -29,3 +29,110 @@ class CourseTable(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class StudentTable(Base):
+    __tablename__ = "academy_students"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(255), nullable=False)
+    email = Column(String(320), nullable=False, index=True)
+    phone = Column(String(50), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class BatchTable(Base):
+    __tablename__ = "academy_batches"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    course_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("academy_courses.id"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(255), nullable=False)
+    start_date = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class EnrollmentTable(Base):
+    __tablename__ = "academy_enrollments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("academy_students.id"),
+        nullable=False,
+        index=True,
+    )
+    course_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("academy_courses.id"),
+        nullable=False,
+        index=True,
+    )
+    status = Column(String(50), nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class BatchAssignmentTable(Base):
+    __tablename__ = "academy_batch_assignments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    enrollment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("academy_enrollments.id"),
+        nullable=False,
+        index=True,
+    )
+    batch_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("academy_batches.id"),
+        nullable=False,
+        index=True,
+    )
+    assigned_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    ended_at = Column(DateTime(timezone=True), nullable=True)
