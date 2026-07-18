@@ -314,12 +314,12 @@ def test_app_and_repos() -> tuple[FastAPI, dict[str, Any]]:
 
     auth_service = AuthService(
         database=db,  # type: ignore[arg-type]
-        publisher=publisher,
+        publisher=publisher,  # type: ignore[arg-type]
         token_service=token_service,
         navigation_service=nav_service,
         password_policy=password_policy,
         settings=settings,
-        repo_factory=test_repo_factory,
+        repo_factory=test_repo_factory,  # type: ignore[arg-type]
     )
     container.register_instance(AuthService, auth_service)
 

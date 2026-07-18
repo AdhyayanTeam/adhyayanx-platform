@@ -29,6 +29,7 @@ export default function CatalogPage() {
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchCourses();
     }
   }, [user, fetchCourses]);

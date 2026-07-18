@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/catalog", tags=["academy-catalog"])
 
 def get_catalog_service(request: Request) -> CatalogService:
     container = request.app.state.container
-    return container.resolve(CatalogService)
+    return cast(CatalogService, container.resolve(CatalogService))
 
 
 class CreateCourseRequest(BaseModel):

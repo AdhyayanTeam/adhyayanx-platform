@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import resend
@@ -29,7 +30,7 @@ from app.modules.platform.notifications.emails.verify_email import render_verify
 
 logger = logging.getLogger("app.modules.platform.notifications.resend")
 
-_TEMPLATE_MAP = {
+_TEMPLATE_MAP: dict[str, Callable[..., tuple[str, str]]] = {
     "verify-email": render_verify_email,
     "reset-password": render_reset_password,
 }
