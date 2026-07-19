@@ -7,6 +7,7 @@ export async function api<T>(
   const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   try {
     const res = await fetch(`${base}${path}`, {
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...init?.headers },
       ...init,
     });

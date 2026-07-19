@@ -64,14 +64,14 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
         secure=not settings.debug,
         samesite="lax",
         max_age=settings.jwt_refresh_token_expire_days * 24 * 3600,
-        path=f"{settings.api_prefix}/auth",
+        path="/",
     )
 
 
 def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         key=_REFRESH_COOKIE,
-        path=f"{settings.api_prefix}/auth",
+        path="/",
     )
 
 
