@@ -24,6 +24,7 @@ class Session:
     starts_at: datetime
     ends_at: datetime
     status: str
+    attendance_submitted_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

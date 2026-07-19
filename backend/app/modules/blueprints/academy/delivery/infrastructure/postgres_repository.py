@@ -59,10 +59,11 @@ class PostgresSessionRepository(SessionRepository):
             starts_at=session_entity.starts_at,
             ends_at=session_entity.ends_at,
             status=session_entity.status,
+            attendance_submitted_at=session_entity.attendance_submitted_at,
             created_at=session_entity.created_at,
             updated_at=session_entity.updated_at,
         )
-        self._session.add(table)
+        await self._session.merge(table)
 
     async def get(self, organization_id: UUID, session_id: UUID) -> Session | None:
         stmt = select(SessionTable).where(
@@ -80,6 +81,7 @@ class PostgresSessionRepository(SessionRepository):
             starts_at=row.starts_at,
             ends_at=row.ends_at,
             status=row.status,
+            attendance_submitted_at=row.attendance_submitted_at,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

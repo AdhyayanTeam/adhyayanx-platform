@@ -31,12 +31,16 @@ class AcademyDeliveryModule(PlatformModule):
         from app.modules.blueprints.academy.delivery.application.uow import DeliveryUnitOfWork, EnrollmentQueryFactory
         from app.modules.blueprints.academy.delivery.infrastructure.postgres_uow import PostgresDeliveryUnitOfWork
 
+        from app.modules.blueprints.academy.delivery.application.queries import BatchOperationsQuery
+        from app.modules.blueprints.academy.delivery.infrastructure.postgres_queries import PostgresBatchOperationsQuery
+
         container.register_instance(BatchRepositoryFactory, _repo_factory)
         container.register_instance(EnrollmentQueryFactory, _enrollment_query_factory)
         container.register(DeliveryUnitOfWork, PostgresDeliveryUnitOfWork)
         container.register(BatchService, BatchService)
         container.register(DeliveryService, DeliveryService)
         container.register(BatchQueryContract, PostgresBatchQueryService)
+        container.register(BatchOperationsQuery, PostgresBatchOperationsQuery)
 
     def register_handlers(self, subscribe: Any) -> None:
         pass

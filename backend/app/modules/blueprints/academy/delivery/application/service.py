@@ -99,6 +99,7 @@ class DeliveryService:
             starts_at=cmd.starts_at,
             ends_at=cmd.ends_at,
             status="scheduled",
+            attendance_submitted_at=None,
             created_at=now,
             updated_at=now,
         )
@@ -134,6 +135,7 @@ class DeliveryService:
                 raise ValidationError(str(e))
             
             await uow.attendance.save_many(attendance_records)
+            await uow.sessions.save(session_entity)
             
             uow.record(event)
             await uow.commit()

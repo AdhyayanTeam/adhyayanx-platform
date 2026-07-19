@@ -18,6 +18,7 @@ class OrganizationTable(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String(255), nullable=False)
     slug = Column(String(100), unique=True, nullable=False, index=True)
+    timezone = Column(String(50), nullable=False, default="UTC")
     lifecycle_state = Column(String(50), nullable=False, default="active")
     version = Column(Integer, nullable=False, default=1)
     extra = Column(JSON, nullable=False, default=dict)

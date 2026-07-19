@@ -52,6 +52,8 @@ def submit_session_attendance(
         )
         attendance_records.append(record)
         
+    now = datetime.now(UTC)
+    
     event = AttendanceSubmitted(
         aggregate_type="academy.delivery.session",
         aggregate_id=session.id,
@@ -62,7 +64,10 @@ def submit_session_attendance(
         present_count=present_count,
         absent_count=absent_count,
         submitted_by=str(submitted_by),
-        occurred_at=datetime.now(UTC),
+        occurred_at=now,
     )
+    
+    session.attendance_submitted_at = now
+    session.updated_at = now
     
     return attendance_records, event
