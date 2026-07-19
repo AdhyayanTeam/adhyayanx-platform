@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 
 async function getToken() {
   const cookieStore = await cookies();
-  return cookieStore.get("auth_token")?.value || "";
+  const token = cookieStore.get("auth_token")?.value;
+  return token || "";
 }
 
 export interface AssignBatchCommand {

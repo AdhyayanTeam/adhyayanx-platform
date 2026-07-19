@@ -3,16 +3,17 @@ import type { ApiResult } from "@/shared/types/api";
 import type { StudentProfileView, StudentEnrollmentView } from "@/features/student-operations/types";
 import { cookies } from "next/headers";
 
+async function getToken() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
+  return token || "";
+}
+
 interface StudentListItem {
   id: string;
   name: string;
   email: string;
   phone: string | null;
-}
-
-async function getToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get("auth_token")?.value || "";
 }
 
 export async function listStudents(): Promise<ApiResult<StudentListItem[]>> {

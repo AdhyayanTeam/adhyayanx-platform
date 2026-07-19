@@ -31,7 +31,7 @@ async def create_batch(
     service: BatchService = Depends(get_batch_service),
 ) -> BatchResponse:
     cmd = CreateBatchCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         course_id=request.course_id,
         name=request.name,
         start_date=request.start_date,
@@ -69,7 +69,7 @@ async def create_session(
     service: DeliveryService = Depends(get_delivery_service),
 ) -> SessionResponse:
     cmd = CreateSessionCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         batch_id=batch_id,
         starts_at=request.starts_at,
         ends_at=request.ends_at,
@@ -94,7 +94,7 @@ async def submit_attendance(
     service: DeliveryService = Depends(get_delivery_service),
 ) -> dict[str, str]:
     cmd = SubmitAttendanceCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         session_id=session_id,
         submitted_by=UUID(current_user["user"]["id"]),
         records=[StudentAttendanceCmd(student_id=r.student_id, status=r.status) for r in request.records]
@@ -115,7 +115,7 @@ async def correct_attendance(
     service: DeliveryService = Depends(get_delivery_service),
 ) -> dict[str, str]:
     cmd = CorrectAttendanceCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         session_id=session_id,
         student_id=student_id,
         new_status=request.status,
@@ -145,7 +145,7 @@ async def get_batches(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> list[BatchOverviewView]:
-    return await query.get_batches_for_course(UUID(current_user["organization"]["id"]), course_id)
+    return await query.get_batches_for_course(current_user["organization"]["id"], course_id)
 
 @sessions_router.get("/sessions", response_model=list[TodaySessionView])
 async def get_todays_sessions(
@@ -153,7 +153,7 @@ async def get_todays_sessions(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> list[TodaySessionView]:
-    return await query.get_todays_sessions(UUID(current_user["organization"]["id"]), date)
+    return await query.get_todays_sessions(current_user["organization"]["id"], date)
 
 @sessions_router.get("/batches/{batch_id}", response_model=BatchOverviewView)
 async def get_batch_overview(
@@ -161,7 +161,7 @@ async def get_batch_overview(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> BatchOverviewView:
-    view = await query.get_batch_overview(UUID(current_user["organization"]["id"]), batch_id)
+    view = await query.get_batch_overview(current_user["organization"]["id"], batch_id)
     if not view:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -173,7 +173,7 @@ async def get_batch_roster(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> list[BatchRosterView]:
-    return await query.get_batch_roster(UUID(current_user["organization"]["id"]), batch_id)
+    return await query.get_batch_roster(current_user["organization"]["id"], batch_id)
 
 @sessions_router.get("/batches/{batch_id}/attendance-summary", response_model=list[BatchSessionSummaryView])
 async def get_batch_attendance_summary(
@@ -181,7 +181,7 @@ async def get_batch_attendance_summary(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> list[BatchSessionSummaryView]:
-    return await query.get_batch_attendance_summary(UUID(current_user["organization"]["id"]), batch_id)
+    return await query.get_batch_attendance_summary(current_user["organization"]["id"], batch_id)
 
 @sessions_router.get("/sessions/{session_id}/attendance", response_model=list[SessionAttendanceSheetView])
 async def get_session_attendance(
@@ -189,4 +189,4 @@ async def get_session_attendance(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: BatchOperationsQuery = Depends(get_batch_operations_query),
 ) -> list[SessionAttendanceSheetView]:
-    return await query.get_session_attendance(UUID(current_user["organization"]["id"]), session_id)
+    return await query.get_session_attendance(current_user["organization"]["id"], session_id)

@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.infrastructure.postgres.database import Database
+
 from app.modules.blueprints.academy.admissions.application.queries import (
     AdmissionsQueryService,
     EnquiryPipelineItemView,
@@ -11,8 +13,8 @@ from app.modules.blueprints.academy.admissions.application.queries import (
 )
 
 class PostgresAdmissionsQueryService(AdmissionsQueryService):
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     async def get_pipeline(self, org_id: UUID, status: Optional[str] = None) -> list[EnquiryPipelineItemView]:
         sql = """
@@ -21,7 +23,7 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
                 l.id as lead_id,
                 TRIM(l.first_name || ' ' || COALESCE(l.last_name, '')) as lead_name,
                 l.phone as lead_phone,
-                c.name as course_name,
+                c.title as course_name,
                 e.status,
                 e.assigned_to,
                 e.next_follow_up_at
@@ -37,8 +39,9 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
             
         sql += " ORDER BY e.next_follow_up_at ASC NULLS LAST, e.created_at DESC"
         
-        result = await self._session.execute(text(sql), params)
-        rows = result.fetchall()
+        async with self._database.session() as session:
+            result = await session.execute(text(sql), params)
+            rows = result.fetchall()
         
         return [
             EnquiryPipelineItemView(
@@ -63,7 +66,7 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
                 l.phone as lead_phone,
                 l.email as lead_email,
                 e.course_id,
-                c.name as course_name,
+                c.title as course_name,
                 e.status,
                 e.source,
                 e.assigned_to,
@@ -76,8 +79,9 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
             JOIN academy_courses c ON e.course_id = c.id
             WHERE e.organization_id = :org_id AND e.id = :enquiry_id
         """
-        result = await self._session.execute(text(sql), {"org_id": org_id, "enquiry_id": enquiry_id})
-        row = result.fetchone()
+        async with self._database.session() as session:
+            result = await session.execute(text(sql), {"org_id": org_id, "enquiry_id": enquiry_id})
+            row = result.fetchone()
         
         if not row:
             return None

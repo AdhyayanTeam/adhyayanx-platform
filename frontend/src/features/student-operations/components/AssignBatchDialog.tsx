@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
-import { useToast } from "@/shared/ui/use-toast";
 import { submitBatchAssignment } from "../actions";
 import type { CompatibleBatchView } from "../types";
 import { Loader2 } from "lucide-react";
@@ -15,14 +14,13 @@ interface Props {
   courseTitle: string;
   currentBatchId: string | null;
   compatibleBatches: CompatibleBatchView[];
-  trigger: React.ReactNode;
+  renderTrigger: (props: React.HTMLAttributes<HTMLElement>) => React.ReactElement;
 }
 
-export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, currentBatchId, compatibleBatches, trigger }: Props) {
+export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, currentBatchId, compatibleBatches, renderTrigger }: Props) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const handleAssign = () => {
     if (!selectedBatchId) return;
@@ -30,25 +28,17 @@ export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, curren
     startTransition(async () => {
       const result = await submitBatchAssignment(studentId, enrollmentId, selectedBatchId);
       if (result.success) {
-        toast({
-          title: "Batch Assigned",
-          description: "The student has been successfully assigned to the batch.",
-        });
         setOpen(false);
         setSelectedBatchId(null);
       } else {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
+        alert(result.error);
       }
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger as React.ReactElement} />
+      <DialogTrigger render={renderTrigger} />
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Assign Batch</DialogTitle>

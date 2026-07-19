@@ -40,6 +40,10 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        import traceback
+        with open("/home/mrigesh/Desktop/Khazana/ADX/adhyayanx-platform/backend/error.log", "a") as f:
+            f.write(traceback.format_exc())
+            f.write("\n")
         logger.exception("Unhandled exception: %s", exc)
         return JSONResponse(
             status_code=500,

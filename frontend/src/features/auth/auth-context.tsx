@@ -24,7 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const silentRefresh = useCallback(async (): Promise<string | null> => {
     const result = await authApi.refresh();
-    if (result.data) return result.data.access_token;
+    if (result.data) {
+      document.cookie = `auth_token=${result.data.access_token}; path=/; max-age=86400`;
+      return result.data.access_token;
+    }
     return null;
   }, []);
 
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const token = refreshResult.data.access_token;
+        document.cookie = `auth_token=${token}; path=/; max-age=86400`;
         const meResult = await authApi.me(token);
         if (cancelled) return;
         if (meResult.data) {
@@ -60,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<string | null> => {
     const result = await authApi.login(email, password);
     if (result.error) return result.error.error?.message || result.error.detail || "Login failed";
+    document.cookie = `auth_token=${result.data!.access_token}; path=/; max-age=86400`;
     setUser(result.data!.user);
     setOrganization(result.data!.organization);
     return null;
@@ -68,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     const token = user?.id ? "" : "";
     await authApi.logout(token);
+    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setUser(null);
     setOrganization(null);
     router.push("/login");

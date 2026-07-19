@@ -34,7 +34,7 @@ async def enroll_student(
     service: EnrollmentService = Depends(get_enrollment_service),
 ) -> ResourceResponse:
     cmd = EnrollStudentCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         student_id=request.student_id,
         course_id=request.course_id,
     )
@@ -49,7 +49,7 @@ async def assign_batch(
     service: EnrollmentService = Depends(get_enrollment_service),
 ) -> ResourceResponse:
     cmd = AssignBatchCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         enrollment_id=enrollment_id,
         batch_id=request.batch_id,
     )
@@ -70,4 +70,4 @@ async def get_student_enrollments(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: EnrollmentQueryService = Depends(get_enrollment_query),
 ) -> list[StudentEnrollmentView]:
-    return await query.get_student_enrollments(UUID(current_user["organization"]["id"]), student_id)
+    return await query.get_student_enrollments(current_user["organization"]["id"], student_id)

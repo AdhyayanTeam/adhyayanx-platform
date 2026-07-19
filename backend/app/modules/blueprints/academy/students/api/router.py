@@ -30,7 +30,7 @@ async def create_student(
     service: StudentService = Depends(get_student_service),
 ) -> StudentResponse:
     cmd = CreateStudentCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         name=request.name,
         email=request.email,
         phone=request.phone,
@@ -50,7 +50,7 @@ async def list_students(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: StudentQueryContract = Depends(get_student_query),
 ) -> list[StudentDto]:
-    return await query.list_students(UUID(current_user["organization"]["id"]))
+    return await query.list_students(current_user["organization"]["id"])
 
 
 @router.get("/{student_id}", response_model=StudentDto)
@@ -59,7 +59,7 @@ async def get_student(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: StudentQueryContract = Depends(get_student_query),
 ) -> StudentDto:
-    student = await query.get_student(UUID(current_user["organization"]["id"]), student_id)
+    student = await query.get_student(current_user["organization"]["id"], student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     return student

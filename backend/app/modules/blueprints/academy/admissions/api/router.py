@@ -47,7 +47,7 @@ async def create_lead(
     service: AdmissionsService = Depends(get_admissions_service),
 ) -> CreateLeadResponse:
     cmd = CreateLeadCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         first_name=request.first_name,
         phone=request.phone,
         last_name=request.last_name,
@@ -73,7 +73,7 @@ async def create_enquiry(
     service: AdmissionsService = Depends(get_admissions_service),
 ) -> CreateEnquiryResponse:
     cmd = CreateEnquiryCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         lead_id=request.lead_id,
         course_id=request.course_id,
         source=request.source,
@@ -95,7 +95,7 @@ async def record_follow_up(
     service: AdmissionsService = Depends(get_admissions_service),
 ) -> dict[str, str]:
     cmd = RecordFollowUpCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         enquiry_id=enquiry_id,
         next_follow_up_at=request.next_follow_up_at,
         notes=request.notes,
@@ -113,7 +113,7 @@ async def admit_enquiry(
     service: AdmissionsService = Depends(get_admissions_service),
 ) -> AdmitEnquiryResponse:
     cmd = AdmitEnquiryCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         enquiry_id=enquiry_id,
         admitted_by=UUID(current_user["user"]["id"]),
     )
@@ -132,7 +132,7 @@ async def mark_lost(
     service: AdmissionsService = Depends(get_admissions_service),
 ) -> dict[str, str]:
     cmd = MarkEnquiryLostCommand(
-        organization_id=UUID(current_user["organization"]["id"]),
+        organization_id=current_user["organization"]["id"],
         enquiry_id=enquiry_id,
         reason=request.reason,
     )
@@ -145,7 +145,7 @@ async def get_pipeline(
     current_user: dict[str, Any] = Depends(get_current_user),
     query: AdmissionsQueryService = Depends(get_admissions_query_service),
 ) -> list[EnquiryPipelineItemView]:
-    return await query.get_pipeline(UUID(current_user["organization"]["id"]), status)
+    return await query.get_pipeline(current_user["organization"]["id"], status)
 
 @router.get("/enquiries/{enquiry_id}", response_model=EnquiryDetailsView)
 async def get_enquiry_details(
@@ -154,7 +154,7 @@ async def get_enquiry_details(
     query: AdmissionsQueryService = Depends(get_admissions_query_service),
 ) -> EnquiryDetailsView:
     from fastapi import HTTPException
-    view = await query.get_enquiry_details(UUID(current_user["organization"]["id"]), enquiry_id)
+    view = await query.get_enquiry_details(current_user["organization"]["id"], enquiry_id)
     if not view:
         raise HTTPException(status_code=404, detail="Enquiry not found")
     return view
