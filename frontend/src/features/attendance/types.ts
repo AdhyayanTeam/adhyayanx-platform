@@ -5,9 +5,11 @@ export interface SessionAttendanceSheetView {
   status: "PRESENT" | "ABSENT" | null;
 }
 
+export interface AttendanceSubmissionRecord {
+  student_id: string;
+  status: "PRESENT" | "ABSENT";
+}
+
 export interface SubmitAttendanceCommand {
-  records: {
-    student_id: string;
-    status: "PRESENT" | "ABSENT";
-  }[];
+  records: AttendanceSubmissionRecord[];
 }

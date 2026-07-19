@@ -38,12 +38,18 @@ export function SessionCard({ session }: { session: TodaySessionView }) {
         </div>
       </CardContent>
 
-      <CardFooter className="pt-0 border-t border-neutral-100 mt-auto">
+      <CardFooter className="pt-4 border-t border-neutral-100 mt-auto flex gap-3">
         <Link 
           href={`/sessions/${session.session_id}`}
-          className={buttonVariants({ variant: isSubmitted ? "outline" : "default", className: "w-full mt-4" })}
+          className={buttonVariants({ variant: isSubmitted ? "outline" : "default", className: "w-full" })}
         >
           {isSubmitted ? "View Session" : "Open Session"}
+        </Link>
+        <Link 
+          href={`/batches/${session.batch_id}`}
+          className={buttonVariants({ variant: "outline", className: "w-full" })}
+        >
+          View Batch
         </Link>
       </CardFooter>
     </Card>

@@ -37,3 +37,26 @@ export async function submitAttendance(sessionId: string, cmd: SubmitAttendanceC
     body: JSON.stringify(cmd)
   });
 }
+
+import type { BatchOverviewView, BatchRosterView, BatchSessionSummaryView } from "@/features/batch-operations/types";
+
+export async function getBatchOverview(batchId: string): Promise<ApiResult<BatchOverviewView>> {
+  const token = await getToken();
+  return apiAuth<BatchOverviewView>(`/api/v1/academy/delivery/batches/${batchId}`, token, {
+    next: { tags: ["academy", "delivery", "batches", batchId] }
+  });
+}
+
+export async function getBatchRoster(batchId: string): Promise<ApiResult<BatchRosterView[]>> {
+  const token = await getToken();
+  return apiAuth<BatchRosterView[]>(`/api/v1/academy/delivery/batches/${batchId}/roster`, token, {
+    next: { tags: ["academy", "delivery", "batches", batchId, "roster"] }
+  });
+}
+
+export async function getBatchAttendanceSummary(batchId: string): Promise<ApiResult<BatchSessionSummaryView[]>> {
+  const token = await getToken();
+  return apiAuth<BatchSessionSummaryView[]>(`/api/v1/academy/delivery/batches/${batchId}/attendance-summary`, token, {
+    next: { tags: ["academy", "delivery", "batches", batchId, "attendance"] }
+  });
+}
