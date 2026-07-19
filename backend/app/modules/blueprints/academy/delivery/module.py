@@ -13,8 +13,6 @@ class AcademyDeliveryModule(PlatformModule):
         from app.modules.blueprints.academy.delivery.application.service import (
             BatchRepositoryFactory,
             BatchService,
-            SessionRepositoryFactory,
-            AttendanceRepositoryFactory,
             DeliveryService,
         )
         from app.modules.blueprints.academy.delivery.contracts.batch_query import BatchQueryContract
@@ -26,21 +24,16 @@ class AcademyDeliveryModule(PlatformModule):
             )
             return PostgresBatchRepository(session)
 
-        def _session_repo_factory(session: Any) -> Any:
-            from app.modules.blueprints.academy.delivery.infrastructure.postgres_repository import (
-                PostgresSessionRepository,
-            )
-            return PostgresSessionRepository(session)
+        def _enrollment_query_factory(session: Any) -> Any:
+            from app.modules.blueprints.academy.enrollment.infrastructure.postgres_enrollment_query import PostgresEnrollmentQueryService
+            return PostgresEnrollmentQueryService(session)
 
-        def _attendance_repo_factory(session: Any) -> Any:
-            from app.modules.blueprints.academy.delivery.infrastructure.postgres_repository import (
-                PostgresAttendanceRepository,
-            )
-            return PostgresAttendanceRepository(session)
+        from app.modules.blueprints.academy.delivery.application.uow import DeliveryUnitOfWork, EnrollmentQueryFactory
+        from app.modules.blueprints.academy.delivery.infrastructure.postgres_uow import PostgresDeliveryUnitOfWork
 
         container.register_instance(BatchRepositoryFactory, _repo_factory)
-        container.register_instance(SessionRepositoryFactory, _session_repo_factory)
-        container.register_instance(AttendanceRepositoryFactory, _attendance_repo_factory)
+        container.register_instance(EnrollmentQueryFactory, _enrollment_query_factory)
+        container.register(DeliveryUnitOfWork, PostgresDeliveryUnitOfWork)
         container.register(BatchService, BatchService)
         container.register(DeliveryService, DeliveryService)
         container.register(BatchQueryContract, PostgresBatchQueryService)

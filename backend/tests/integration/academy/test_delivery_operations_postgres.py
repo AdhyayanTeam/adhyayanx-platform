@@ -40,9 +40,11 @@ async def setup_data(async_client: httpx.AsyncClient, app_with_db: FastAPI, real
         student_ids.append(sid)
         
         e_resp = await async_client.post(f"{PREFIX}/enrollments", json={"student_id": sid, "course_id": course_id})
+        assert e_resp.status_code in (200, 201), e_resp.text
         eid = e_resp.json()["id"]
         
-        await async_client.post(f"{PREFIX}/enrollments/{eid}/assignments", json={"batch_id": batch_id})
+        a_resp = await async_client.post(f"{PREFIX}/enrollments/{eid}/assign", json={"batch_id": batch_id})
+        assert a_resp.status_code in (200, 201), a_resp.text
 
     # Create unassigned student (enrolled in course, but not assigned to batch)
     s_resp = await async_client.post(f"{PREFIX}/students", json={"name": "Unassigned", "email": "u@test.com"})
@@ -82,8 +84,14 @@ async def test_delivery_attendance_happy_path(async_client: httpx.AsyncClient, r
         {"student_id": student_ids[2], "status": "PRESENT"},
         {"student_id": student_ids[3], "status": "ABSENT"},
     ]
+    
+    # DEBUG
+    async with real_database.session() as s:
+        res = await s.execute(text("SELECT to_regclass('academy_batch_assignments')"))
+        print("TABLE EXISTS CHECK:", res.scalar_one_or_none())
+        
     resp = await async_client.post(f"{DELIVERY_PREFIX}/sessions/{session_id}/attendance", json={"records": records})
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
 
     # Verify DB
     async with real_database.session() as db_session:
@@ -95,7 +103,7 @@ async def test_delivery_attendance_happy_path(async_client: httpx.AsyncClient, r
         
         # Verify Outbox
         outbox_result = await db_session.execute(
-            text("SELECT payload FROM event_outbox WHERE aggregate_id = :sid AND event_type = 'academy.delivery.AttendanceSubmitted'"),
+            text("SELECT data FROM event_outbox WHERE aggregate_id = :sid AND event_type = 'academy.delivery.AttendanceSubmitted'"),
             {"sid": session_id}
         )
         payload = outbox_result.scalar_one_or_none()
@@ -118,7 +126,7 @@ async def test_delivery_attendance_happy_path(async_client: httpx.AsyncClient, r
 
         # Verify Correction Outbox
         outbox_result = await db_session.execute(
-            text("SELECT payload FROM event_outbox WHERE aggregate_id = :sid AND event_type = 'academy.delivery.AttendanceCorrected'"),
+            text("SELECT data FROM event_outbox WHERE aggregate_id = :sid AND event_type = 'academy.delivery.AttendanceCorrected'"),
             {"sid": session_id}
         )
         payload = outbox_result.scalar_one_or_none()
@@ -141,7 +149,7 @@ async def test_delivery_attendance_mixed_validity_rollback(async_client: httpx.A
     ]
     resp = await async_client.post(f"{DELIVERY_PREFIX}/sessions/{session_id}/attendance", json={"records": records})
     assert resp.status_code == 422
-    assert "not enrolled in this batch" in resp.text
+    assert "not enrolled in the batch" in resp.text
 
     # Verify Rollback
     async with real_database.session() as db_session:
@@ -169,7 +177,7 @@ async def test_delivery_attendance_duplicates_rejected(async_client: httpx.Async
     ]
     resp = await async_client.post(f"{DELIVERY_PREFIX}/sessions/{session_id}/attendance", json={"records": records})
     assert resp.status_code == 422
-    assert "Duplicate student ID" in resp.text
+    assert "Duplicate attendance submission" in resp.text
 
 @pytest.mark.asyncio
 async def test_delivery_attendance_cross_tenant_isolation(async_client: httpx.AsyncClient, app_with_db: FastAPI, real_database: Database, setup_data: dict):

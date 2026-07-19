@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.blueprints.academy.delivery.domain.models import AttendanceRecord
+
+class AttendanceRepository(Protocol):
+    async def save_many(self, records: list[AttendanceRecord]) -> None:
+        ...
+    async def save_bulk(self, records: list[AttendanceRecord]) -> None:
+        ...
+    async def get(self, organization_id: UUID, session_id: UUID, student_id: UUID) -> AttendanceRecord | None:
+        ...
+    async def get_by_id(self, session_id: UUID, student_id: UUID) -> AttendanceRecord | None:
+        ...
+    async def save(self, record: AttendanceRecord) -> None:
+        ...
