@@ -1147,6 +1147,24 @@ Based solely on the current repository state:
 **Dependencies:** None
 **Risks:** Must ensure existing deployments are not affected by key rotation.
 
+### Milestone 11: Academy V1 Feature Delivery ✅ COMPLETE
+**Why:** Full-stack Academy module — catalog, delivery, enrollment, admissions, student operations, batch management, and attendance tracking.
+**Delivered:** Course catalog CRUD, batch/session delivery, student enrollment with transactional outbox, admissions pipeline (lead→enquiry→prospect→student), batch assignment, attendance recording, today's operations dashboard, student profiles, frontend hydration/import fixes. 59 backend tests passing, frontend production build green.
+**Dependencies:** M1–M10
+**Status:** Frozen 2026-07-19.
+
+### Milestone 12: Academy V1 Stabilization & Hardening (Complexity: Medium)
+**Why:** V1 features are functional but lack production hardening — missing error boundaries, loading skeletons, input validation edge cases, and frontend test coverage.
+**Tasks:**
+1. **Frontend error boundaries** — wrap each route segment in `error.tsx` boundaries with retry UX
+2. **Loading skeletons** — add `loading.tsx` for all dynamic routes (students, batches, sessions, admissions)
+3. **Form input validation** — server-side validation on all POST endpoints (enrollment, batch assignment, attendance, admissions)
+4. **Frontend lint pass** — fix all ESLint warnings, enforce consistent import paths
+5. **API contract tests** — validate frontend API types match backend response shapes
+6. **Accessibility audit** — ensure dialog, form, and table components meet WCAG 2.1 AA
+**Dependencies:** Milestone 11
+**Risks:** Loading/error UX changes may affect existing flows; validation changes may surface hidden bugs.
+
 ---
 
 ## 17. Production Readiness Score
