@@ -276,3 +276,64 @@ class PostgresBatchOperationsQuery(BatchOperationsQuery):
                     )
                 )
             return views
+
+    async def get_batches_for_course(self, org_id: UUID, course_id: UUID) -> list[BatchOverviewView]:
+        async with self._database.session() as session:
+            student_count_sq = (
+                select(
+                    BatchAssignmentTable.batch_id,
+                    func.count(BatchAssignmentTable.id).label("assigned_count")
+                )
+                .where(BatchAssignmentTable.organization_id == org_id)
+                .where(BatchAssignmentTable.ended_at == None)
+                .group_by(BatchAssignmentTable.batch_id)
+                .subquery()
+            )
+            
+            # Subquery to find the next session
+            next_session_sq = (
+                select(
+                    SessionTable.batch_id,
+                    SessionTable.id,
+                    SessionTable.starts_at,
+                    func.row_number().over(
+                        partition_by=SessionTable.batch_id,
+                        order_by=SessionTable.starts_at.asc()
+                    ).label("rn")
+                )
+                .where(
+                    SessionTable.organization_id == org_id,
+                    SessionTable.starts_at > datetime.now(UTC),
+                )
+                .subquery()
+            )
+
+            stmt = (
+                select(
+                    BatchTable.id.label("batch_id"),
+                    CourseTable.title.label("course_title"),
+                    BatchTable.name.label("batch_name"),
+                    func.coalesce(student_count_sq.c.assigned_count, 0).label("assigned_student_count"),
+                    next_session_sq.c.id.label("next_session_id"),
+                    next_session_sq.c.starts_at.label("next_session_starts_at"),
+                )
+                .select_from(BatchTable)
+                .join(CourseTable, BatchTable.course_id == CourseTable.id)
+                .outerjoin(student_count_sq, BatchTable.id == student_count_sq.c.batch_id)
+                .outerjoin(next_session_sq, and_(BatchTable.id == next_session_sq.c.batch_id, next_session_sq.c.rn == 1))
+                .where(BatchTable.organization_id == org_id, BatchTable.course_id == course_id)
+            )
+
+            result = await session.execute(stmt)
+
+            return [
+                BatchOverviewView(
+                    batch_id=row.batch_id,
+                    course_title=row.course_title,
+                    batch_name=row.batch_name,
+                    assigned_student_count=row.assigned_student_count,
+                    next_session_id=row.next_session_id,
+                    next_session_starts_at=row.next_session_starts_at,
+                )
+                for row in result
+            ]

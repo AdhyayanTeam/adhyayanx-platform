@@ -139,6 +139,14 @@ def get_batch_operations_query(request: Request) -> BatchOperationsQuery:
     container = request.app.state.container
     return cast(BatchOperationsQuery, container.resolve(BatchOperationsQuery))
 
+@sessions_router.get("/batches", response_model=list[BatchOverviewView])
+async def get_batches(
+    course_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    query: BatchOperationsQuery = Depends(get_batch_operations_query),
+) -> list[BatchOverviewView]:
+    return await query.get_batches_for_course(UUID(current_user["organization"]["id"]), course_id)
+
 @sessions_router.get("/sessions", response_model=list[TodaySessionView])
 async def get_todays_sessions(
     date: date | None = None,

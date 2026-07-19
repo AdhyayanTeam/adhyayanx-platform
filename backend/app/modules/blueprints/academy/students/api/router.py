@@ -37,3 +37,21 @@ async def create_student(
     )
     student_id = await service.create_student(cmd)
     return StudentResponse(id=student_id)
+
+from app.modules.blueprints.academy.students.contracts.student_query import StudentQueryContract, StudentDto
+from fastapi import HTTPException
+
+def get_student_query(request: Request) -> StudentQueryContract:
+    container = request.app.state.container
+    return cast(StudentQueryContract, container.resolve(StudentQueryContract))
+
+@router.get("/{student_id}", response_model=StudentDto)
+async def get_student(
+    student_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    query: StudentQueryContract = Depends(get_student_query),
+) -> StudentDto:
+    student = await query.get_student(UUID(current_user["organization"]["id"]), student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student

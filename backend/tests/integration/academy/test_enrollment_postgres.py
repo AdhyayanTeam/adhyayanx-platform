@@ -156,3 +156,96 @@ async def test_enrollment_transactional_outbox_atomicity(async_client: httpx.Asy
     async with real_database.session() as session:
         result = await session.execute(text("SELECT COUNT(*) FROM academy_enrollments WHERE student_id = :sid AND course_id = :cid"), {"sid": student_id, "cid": course_id})
         assert result.scalar_one() == 0
+
+@pytest.mark.asyncio
+async def test_student_and_enrollment_queries(async_client: httpx.AsyncClient, app_with_db: FastAPI, real_database: Database):
+    org_id = str(uuid4())
+    await create_test_organization(real_database, org_id)
+    set_current_user(app_with_db, org_id, ["owner"])
+
+    # 1. Create Course and Batches
+    c_resp = await async_client.post(f"{PREFIX}/catalog/courses", json={"title": "Data Analytics"})
+    course_id = c_resp.json()["id"]
+    
+    await async_client.post(f"{PREFIX}/delivery/batches", json={"course_id": course_id, "name": "Batch A"})
+    b_resp = await async_client.post(f"{PREFIX}/delivery/batches", json={"course_id": course_id, "name": "Batch B"})
+    batch_b_id = b_resp.json()["id"]
+
+    # 2. Get Compatible Batches for Course
+    batches_resp = await async_client.get(f"{PREFIX}/delivery/batches?course_id={course_id}")
+    assert batches_resp.status_code == 200
+    batches = batches_resp.json()
+    assert len(batches) == 2
+    assert any(b["batch_name"] == "Batch A" for b in batches)
+
+    # 3. Create Student
+    s_resp = await async_client.post(f"{PREFIX}/students", json={"name": "Diana", "email": "diana@example.com"})
+    student_id = s_resp.json()["id"]
+
+    # Verify Student Profile Query
+    profile_resp = await async_client.get(f"{PREFIX}/students/{student_id}")
+    assert profile_resp.status_code == 200
+    assert profile_resp.json()["name"] == "Diana"
+
+    # 4. Enroll Student
+    e_resp = await async_client.post(f"{PREFIX}/enrollments", json={"student_id": student_id, "course_id": course_id})
+    enrollment_id = e_resp.json()["id"]
+
+    # Verify Enrollments Query (Not assigned yet)
+    enrollments_resp = await async_client.get(f"{PREFIX}/students/{student_id}/enrollments")
+    assert enrollments_resp.status_code == 200
+    enrollments = enrollments_resp.json()
+    assert len(enrollments) == 1
+    assert enrollments[0]["course_title"] == "Data Analytics"
+    assert enrollments[0]["current_batch_id"] is None
+
+    # 5. Assign to Batch B
+    await async_client.post(f"{PREFIX}/enrollments/{enrollment_id}/assign", json={"batch_id": batch_b_id})
+
+    # Verify Enrollments Query (Assigned to Batch B)
+    enrollments_resp = await async_client.get(f"{PREFIX}/students/{student_id}/enrollments")
+    enrollments = enrollments_resp.json()
+    assert enrollments[0]["current_batch_id"] == batch_b_id
+    assert enrollments[0]["current_batch_name"] == "Batch B"
+
+@pytest.mark.asyncio
+async def test_batch_reassignment_preserves_history(async_client: httpx.AsyncClient, app_with_db: FastAPI, real_database: Database):
+    org_id = str(uuid4())
+    await create_test_organization(real_database, org_id)
+    set_current_user(app_with_db, org_id, ["owner"])
+
+    c_resp = await async_client.post(f"{PREFIX}/catalog/courses", json={"title": "Reassignment Course"})
+    course_id = c_resp.json()["id"]
+    
+    b1_resp = await async_client.post(f"{PREFIX}/delivery/batches", json={"course_id": course_id, "name": "Batch 1"})
+    batch_1_id = b1_resp.json()["id"]
+    
+    b2_resp = await async_client.post(f"{PREFIX}/delivery/batches", json={"course_id": course_id, "name": "Batch 2"})
+    batch_2_id = b2_resp.json()["id"]
+
+    s_resp = await async_client.post(f"{PREFIX}/students", json={"name": "Evan", "email": "evan@example.com"})
+    student_id = s_resp.json()["id"]
+    
+    e_resp = await async_client.post(f"{PREFIX}/enrollments", json={"student_id": student_id, "course_id": course_id})
+    enrollment_id = e_resp.json()["id"]
+
+    # Assign Batch 1
+    await async_client.post(f"{PREFIX}/enrollments/{enrollment_id}/assign", json={"batch_id": batch_1_id})
+
+    # Reassign Batch 2
+    await async_client.post(f"{PREFIX}/enrollments/{enrollment_id}/assign", json={"batch_id": batch_2_id})
+
+    # Verify Enrollments Query shows Batch 2 as current
+    enrollments_resp = await async_client.get(f"{PREFIX}/students/{student_id}/enrollments")
+    assert enrollments_resp.status_code == 200
+    enrollments = enrollments_resp.json()
+    assert enrollments[0]["current_batch_id"] == batch_2_id
+    assert enrollments[0]["current_batch_name"] == "Batch 2"
+
+    # Verify history in DB
+    async with real_database.session() as session:
+        result = await session.execute(text("SELECT batch_id FROM academy_batch_assignments WHERE enrollment_id = :id ORDER BY assigned_at ASC"), {"id": enrollment_id})
+        assignments = result.fetchall()
+        assert len(assignments) == 2
+        assert str(assignments[0][0]) == batch_1_id
+        assert str(assignments[1][0]) == batch_2_id

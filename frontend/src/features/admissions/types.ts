@@ -12,6 +12,7 @@ export interface EnquiryPipelineItemView {
 export interface EnquiryDetailsView {
   enquiry_id: string;
   lead_id: string;
+  student_id: string | null;
   lead_name: string;
   lead_phone: string;
   lead_email: string | null;

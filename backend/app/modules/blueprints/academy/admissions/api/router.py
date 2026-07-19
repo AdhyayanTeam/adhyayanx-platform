@@ -103,19 +103,22 @@ async def record_follow_up(
     await service.record_follow_up(cmd)
     return {"status": "success"}
 
-@router.post("/enquiries/{enquiry_id}/admit", status_code=200)
+class AdmitEnquiryResponse(BaseModel):
+    student_id: UUID
+
+@router.post("/enquiries/{enquiry_id}/admit", response_model=AdmitEnquiryResponse, status_code=200)
 async def admit_enquiry(
     enquiry_id: UUID,
     current_user: dict[str, Any] = Depends(get_current_user),
     service: AdmissionsService = Depends(get_admissions_service),
-) -> dict[str, str]:
+) -> AdmitEnquiryResponse:
     cmd = AdmitEnquiryCommand(
         organization_id=UUID(current_user["organization"]["id"]),
         enquiry_id=enquiry_id,
         admitted_by=UUID(current_user["user"]["id"]),
     )
-    await service.admit_enquiry(cmd)
-    return {"status": "success"}
+    student_id = await service.admit_enquiry(cmd)
+    return AdmitEnquiryResponse(student_id=student_id)
 
 class MarkEnquiryLostRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")

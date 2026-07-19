@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { format } from "date-fns";
 import type { EnquiryDetailsView } from "../types";
 import { RecordFollowUpDialog } from "./RecordFollowUpDialog";
 import { ConfirmAdmissionDialog } from "./ConfirmAdmissionDialog";
 import { MarkLostDialog } from "./MarkLostDialog";
+import { Button } from "@/shared/ui/button";
 
 interface Props {
   enquiry: EnquiryDetailsView;
@@ -29,6 +31,13 @@ export function EnquiryWorkspace({ enquiry, leadName, leadPhone, leadEmail }: Pr
           <p className="text-sm text-green-800">
             {leadName || "This student"} is now enrolled in {enquiry.course_name}.
           </p>
+          {enquiry.student_id && (
+            <div className="mt-4">
+              <Button size="sm" render={<Link href={`/console/academy/students/${enquiry.student_id}`} />}>
+                View Student
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

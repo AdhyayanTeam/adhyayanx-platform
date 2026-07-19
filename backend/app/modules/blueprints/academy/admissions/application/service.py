@@ -101,7 +101,7 @@ class AdmissionsService:
             await self._uow.repository.save_enquiry(enquiry)
             await self._uow.commit()
 
-    async def admit_enquiry(self, cmd: AdmitEnquiryCommand) -> None:
+    async def admit_enquiry(self, cmd: AdmitEnquiryCommand) -> UUID:
         async with self._uow:
             enquiry = await self._uow.repository.get_enquiry(cmd.organization_id, cmd.enquiry_id)
             if not enquiry:
@@ -151,3 +151,5 @@ class AdmissionsService:
 
             # 6. Commit
             await self._uow.commit()
+            
+            return student_id

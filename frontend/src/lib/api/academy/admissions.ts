@@ -40,9 +40,13 @@ export async function recordFollowUp(enquiryId: string, cmd: RecordFollowUpComma
   });
 }
 
-export async function admitEnquiry(enquiryId: string): Promise<ApiResult<void>> {
+export interface AdmitEnquiryResponse {
+  student_id: string;
+}
+
+export async function admitEnquiry(enquiryId: string): Promise<ApiResult<AdmitEnquiryResponse>> {
   const token = await getToken();
-  return apiAuth<void>(`/api/v1/academy/admissions/enquiries/${enquiryId}/admit`, token, {
+  return apiAuth<AdmitEnquiryResponse>(`/api/v1/academy/admissions/enquiries/${enquiryId}/admit`, token, {
     method: "POST",
   });
 }

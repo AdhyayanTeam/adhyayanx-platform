@@ -18,13 +18,13 @@ export async function submitFollowUp(enquiryId: string, cmd: RecordFollowUpComma
 
 export async function submitAdmission(enquiryId: string) {
   const result = await admitEnquiry(enquiryId);
-  if (result.error) {
-    return { success: false, error: errorMessage(result.error) };
+  if (result.error || !result.data) {
+    return { success: false as const, error: result.error ? errorMessage(result.error) : "No data" };
   }
   
   revalidatePath("/console/academy/admissions");
   revalidatePath(`/console/academy/admissions/${enquiryId}`);
-  return { success: true };
+  return { success: true as const, studentId: result.data.student_id };
 }
 
 export async function submitLost(enquiryId: string, cmd: MarkEnquiryLostCommand) {

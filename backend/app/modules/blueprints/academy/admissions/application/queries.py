@@ -18,6 +18,7 @@ class EnquiryPipelineItemView:
 class EnquiryDetailsView:
     enquiry_id: UUID
     lead_id: UUID
+    student_id: Optional[UUID]
     lead_name: str
     lead_phone: str
     lead_email: Optional[str]

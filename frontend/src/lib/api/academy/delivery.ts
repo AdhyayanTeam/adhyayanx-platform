@@ -39,6 +39,7 @@ export async function submitAttendance(sessionId: string, cmd: SubmitAttendanceC
 }
 
 import type { BatchOverviewView, BatchRosterView, BatchSessionSummaryView } from "@/features/batch-operations/types";
+import type { CompatibleBatchView } from "@/features/student-operations/types";
 
 export async function getBatchOverview(batchId: string): Promise<ApiResult<BatchOverviewView>> {
   const token = await getToken();
@@ -58,5 +59,12 @@ export async function getBatchAttendanceSummary(batchId: string): Promise<ApiRes
   const token = await getToken();
   return apiAuth<BatchSessionSummaryView[]>(`/api/v1/academy/delivery/batches/${batchId}/attendance-summary`, token, {
     next: { tags: ["academy", "delivery", "batches", batchId, "attendance"] }
+  });
+}
+
+export async function getBatchesForCourse(courseId: string): Promise<ApiResult<CompatibleBatchView[]>> {
+  const token = await getToken();
+  return apiAuth<CompatibleBatchView[]>(`/api/v1/academy/delivery/batches?course_id=${courseId}`, token, {
+    next: { tags: ["academy", "delivery", "batches", `course-${courseId}`] }
   });
 }

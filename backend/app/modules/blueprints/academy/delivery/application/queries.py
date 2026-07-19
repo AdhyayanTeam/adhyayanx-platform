@@ -63,3 +63,6 @@ class BatchOperationsQuery(Protocol):
 
     async def get_batch_attendance_summary(self, org_id: UUID, batch_id: UUID) -> list[BatchSessionSummaryView]:
         ...
+
+    async def get_batches_for_course(self, org_id: UUID, course_id: UUID) -> list[BatchOverviewView]:
+        ...
