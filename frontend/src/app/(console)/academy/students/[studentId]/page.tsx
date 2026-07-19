@@ -11,7 +11,7 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
   ]);
 
   if (profileResult.error || !profileResult.data) {
-    if (profileResult.error?.status === 404) notFound();
+    if (profileResult.error?.detail === "Not Found") notFound();
     return (
       <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg">
         Failed to load student profile.

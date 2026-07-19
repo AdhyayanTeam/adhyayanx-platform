@@ -95,11 +95,11 @@ export function StudentProfile({ studentId, student, enrollmentsWithBatches }: P
                         courseTitle={enrollment.course_title}
                         currentBatchId={enrollment.current_batch_id}
                         compatibleBatches={compatibleBatches}
-                        renderTrigger={(props) => (
-                          <Button variant={enrollment.current_batch_id ? "outline" : "default"} size="sm" {...props}>
+                        trigger={
+                          <Button variant={enrollment.current_batch_id ? "outline" : "default"} size="sm">
                             {enrollment.current_batch_id ? "Change Batch" : "Assign Batch"}
                           </Button>
-                        )}
+                        }
                       />
                     </div>
                   </div>

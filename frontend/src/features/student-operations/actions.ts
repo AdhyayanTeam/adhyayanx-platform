@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assignBatch } from "@/lib/api/academy/enrollments";
-import { errorMessage } from "@/shared/lib/api-client";
+import { errorMessage } from "@/shared/types/api";
 
 export async function submitBatchAssignment(studentId: string, enrollmentId: string, batchId: string) {
   const result = await assignBatch(enrollmentId, { batch_id: batchId });

@@ -15,10 +15,10 @@ interface Props {
   courseTitle: string;
   currentBatchId: string | null;
   compatibleBatches: CompatibleBatchView[];
-  renderTrigger: (props: React.HTMLAttributes<HTMLElement>) => React.ReactNode;
+  trigger: React.ReactNode;
 }
 
-export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, currentBatchId, compatibleBatches, renderTrigger }: Props) {
+export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, currentBatchId, compatibleBatches, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function AssignBatchDialog({ studentId, enrollmentId, courseTitle, curren
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={renderTrigger} />
+      <DialogTrigger render={trigger as React.ReactElement} />
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Assign Batch</DialogTitle>
