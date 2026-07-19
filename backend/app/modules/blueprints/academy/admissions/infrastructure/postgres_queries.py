@@ -58,6 +58,9 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
             SELECT 
                 e.id as enquiry_id,
                 e.lead_id,
+                TRIM(l.first_name || ' ' || COALESCE(l.last_name, '')) as lead_name,
+                l.phone as lead_phone,
+                l.email as lead_email,
                 e.course_id,
                 c.name as course_name,
                 e.status,
@@ -67,6 +70,7 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
                 e.notes,
                 e.created_at
             FROM academy_enquiries e
+            JOIN academy_leads l ON e.lead_id = l.id
             JOIN academy_courses c ON e.course_id = c.id
             WHERE e.organization_id = :org_id AND e.id = :enquiry_id
         """
@@ -79,6 +83,9 @@ class PostgresAdmissionsQueryService(AdmissionsQueryService):
         return EnquiryDetailsView(
             enquiry_id=row.enquiry_id,
             lead_id=row.lead_id,
+            lead_name=row.lead_name,
+            lead_phone=row.lead_phone,
+            lead_email=row.lead_email,
             course_id=row.course_id,
             course_name=row.course_name,
             status=row.status,
