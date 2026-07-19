@@ -53,7 +53,7 @@ export default async function EnquiryDetailsPage({ params }: PageProps) {
   return (
     <div className="max-w-4xl p-6 lg:p-8">
       <div className="mb-6">
-        <Button variant="ghost" className="-ml-4 text-neutral-500" render={<Link href="/console/academy/admissions" />}>
+        <Button variant="ghost" className="-ml-4 text-neutral-500" render={<Link href="/academy/admissions" />}>
           ← Back to Admissions
         </Button>
       </div>

@@ -10,6 +10,6 @@ export async function submitBatchAssignment(studentId: string, enrollmentId: str
     return { success: false as const, error: errorMessage(result.error) };
   }
   
-  revalidatePath(`/console/academy/students/${studentId}`);
+  revalidatePath(`/academy/students/${studentId}`);
   return { success: true as const };
 }

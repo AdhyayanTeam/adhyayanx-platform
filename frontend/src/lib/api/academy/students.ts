@@ -3,9 +3,21 @@ import type { ApiResult } from "@/shared/types/api";
 import type { StudentProfileView, StudentEnrollmentView } from "@/features/student-operations/types";
 import { cookies } from "next/headers";
 
+interface StudentListItem {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+}
+
 async function getToken() {
   const cookieStore = await cookies();
   return cookieStore.get("auth_token")?.value || "";
+}
+
+export async function listStudents(): Promise<ApiResult<StudentListItem[]>> {
+  const token = await getToken();
+  return apiAuth<StudentListItem[]>("/api/v1/academy/students", token);
 }
 
 export async function getStudentProfile(studentId: string): Promise<ApiResult<StudentProfileView>> {

@@ -18,7 +18,7 @@ export default async function BatchOperationsPage({ params }: { params: { batchI
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
           Batch not found or an error occurred.
         </div>
-        <Link href="/" className={buttonVariants({ variant: "outline", className: "mt-4" })}>
+        <Link href="/academy/today" className={buttonVariants({ variant: "outline", className: "mt-4" })}>
           Back to Today's Operations
         </Link>
       </main>
@@ -32,7 +32,7 @@ export default async function BatchOperationsPage({ params }: { params: { batchI
   return (
     <main className="container max-w-4xl mx-auto py-8 px-4 sm:px-6">
       <div className="mb-8">
-        <Link href="/" className={buttonVariants({ variant: "link", className: "px-0 text-neutral-500 mb-2" })}>
+        <Link href="/academy/today" className={buttonVariants({ variant: "link", className: "px-0 text-neutral-500 mb-2" })}>
           ← Back to Today's Operations
         </Link>
         <h1 className="text-3xl font-bold tracking-tight text-neutral-900">{overview.course_title}</h1>

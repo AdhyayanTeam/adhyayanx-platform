@@ -33,7 +33,7 @@ export function EnquiryWorkspace({ enquiry, leadName, leadPhone, leadEmail }: Pr
           </p>
           {enquiry.student_id && (
             <div className="mt-4">
-              <Button size="sm" render={<Link href={`/console/academy/students/${enquiry.student_id}`} />}>
+              <Button size="sm" render={<Link href={`/academy/students/${enquiry.student_id}`} />}>
                 View Student
               </Button>
             </div>

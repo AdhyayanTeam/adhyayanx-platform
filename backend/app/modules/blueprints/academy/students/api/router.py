@@ -45,6 +45,14 @@ def get_student_query(request: Request) -> StudentQueryContract:
     container = request.app.state.container
     return cast(StudentQueryContract, container.resolve(StudentQueryContract))
 
+@router.get("", response_model=list[StudentDto])
+async def list_students(
+    current_user: dict[str, Any] = Depends(get_current_user),
+    query: StudentQueryContract = Depends(get_student_query),
+) -> list[StudentDto]:
+    return await query.list_students(UUID(current_user["organization"]["id"]))
+
+
 @router.get("/{student_id}", response_model=StudentDto)
 async def get_student(
     student_id: UUID,

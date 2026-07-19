@@ -28,7 +28,7 @@ export function LoginForm() {
     if (err) {
       setError(err);
     } else {
-      router.push("/console");
+      router.push("/academy/today");
     }
   }
 

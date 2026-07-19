@@ -11,8 +11,8 @@ export async function submitFollowUp(enquiryId: string, cmd: RecordFollowUpComma
     return { success: false, error: errorMessage(result.error) };
   }
   
-  revalidatePath("/console/academy/admissions");
-  revalidatePath(`/console/academy/admissions/${enquiryId}`);
+  revalidatePath("/academy/admissions");
+  revalidatePath(`/academy/admissions/${enquiryId}`);
   return { success: true };
 }
 
@@ -22,8 +22,8 @@ export async function submitAdmission(enquiryId: string) {
     return { success: false as const, error: result.error ? errorMessage(result.error) : "No data" };
   }
   
-  revalidatePath("/console/academy/admissions");
-  revalidatePath(`/console/academy/admissions/${enquiryId}`);
+  revalidatePath("/academy/admissions");
+  revalidatePath(`/academy/admissions/${enquiryId}`);
   return { success: true as const, studentId: result.data.student_id };
 }
 
@@ -33,7 +33,7 @@ export async function submitLost(enquiryId: string, cmd: MarkEnquiryLostCommand)
     return { success: false, error: errorMessage(result.error) };
   }
   
-  revalidatePath("/console/academy/admissions");
-  revalidatePath(`/console/academy/admissions/${enquiryId}`);
+  revalidatePath("/academy/admissions");
+  revalidatePath(`/academy/admissions/${enquiryId}`);
   return { success: true };
 }

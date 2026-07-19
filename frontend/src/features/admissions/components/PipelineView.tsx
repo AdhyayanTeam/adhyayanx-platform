@@ -109,7 +109,7 @@ function PipelineCard({ item, overdue }: { item: EnquiryPipelineItemView; overdu
           )}
         </div>
         <div>
-          <Button variant="outline" size="sm" render={<Link href={`/console/academy/admissions/${item.enquiry_id}`} />}>
+          <Button variant="outline" size="sm" render={<Link href={`/academy/admissions/${item.enquiry_id}`} />}>
             Open
           </Button>
         </div>

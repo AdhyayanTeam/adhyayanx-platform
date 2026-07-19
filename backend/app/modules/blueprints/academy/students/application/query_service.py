@@ -29,3 +29,22 @@ class PostgresStudentQueryService:
                 email=student_row.email,
                 phone=student_row.phone,
             )
+
+    async def list_students(self, organization_id: UUID) -> list[StudentDto]:
+        async with self._db.session() as session:
+            stmt = (
+                select(StudentTable)
+                .where(StudentTable.organization_id == organization_id)
+                .order_by(StudentTable.name)
+            )
+            result = await session.execute(stmt)
+            return [
+                StudentDto(
+                    id=row.id,
+                    organization_id=row.organization_id,
+                    name=row.name,
+                    email=row.email,
+                    phone=row.phone,
+                )
+                for row in result.scalars().all()
+            ]

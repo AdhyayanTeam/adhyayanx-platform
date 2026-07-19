@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   const hasRefreshToken = request.cookies.has("refresh_token");
 
   if (publicRoutes.includes(pathname) && hasRefreshToken) {
-    return NextResponse.redirect(new URL("/console", request.url));
+    return NextResponse.redirect(new URL("/academy/today", request.url));
   }
 
   if (!publicRoutes.includes(pathname) && !hasRefreshToken) {

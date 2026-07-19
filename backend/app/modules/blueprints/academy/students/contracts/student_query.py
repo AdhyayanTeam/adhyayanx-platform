@@ -14,3 +14,7 @@ class StudentQueryContract(Protocol):
     async def get_student(self, organization_id: UUID, student_id: UUID) -> StudentDto | None:
         """Fetch student details for cross-module validation."""
         ...
+
+    async def list_students(self, organization_id: UUID) -> list[StudentDto]:
+        """List all students for an organization."""
+        ...

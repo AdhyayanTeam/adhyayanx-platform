@@ -21,7 +21,7 @@ export function StudentProfile({ studentId, student, enrollmentsWithBatches }: P
     <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <Button variant="ghost" size="sm" className="mb-4 text-gray-500 hover:text-gray-900" render={<Link href="/console/academy/admissions" />}>
+        <Button variant="ghost" size="sm" className="mb-4 text-gray-500 hover:text-gray-900" render={<Link href="/academy/admissions" />}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Admissions
         </Button>
         <div className="flex items-start justify-between">
