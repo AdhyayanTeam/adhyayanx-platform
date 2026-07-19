@@ -8,8 +8,8 @@ export async function api<T>(
   try {
     const res = await fetch(`${base}${path}`, {
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...init?.headers },
       ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
     });
     if (res.status === 204) return { data: null as T, error: null };
     const body = await res.json();

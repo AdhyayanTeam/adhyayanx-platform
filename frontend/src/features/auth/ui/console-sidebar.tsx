@@ -41,13 +41,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Operations",
-    items: [
-      { href: "/batches", label: "Batches", icon: LayoutList },
-      { href: "/sessions", label: "Sessions", icon: Radio },
-    ],
-  },
-  {
     label: "Account",
     items: [
       { href: "/console/profile", label: "Profile", icon: User },

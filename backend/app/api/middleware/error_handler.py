@@ -38,6 +38,18 @@ def register_error_handlers(app: FastAPI) -> None:
             },
         )
 
+    from fastapi.exceptions import RequestValidationError
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        with open("/home/mrigesh/Desktop/Khazana/ADX/adhyayanx-platform/backend/error.log", "a") as f:
+            f.write(f"422 Error at {request.url}:\n")
+            f.write(str(exc.errors()) + "\n")
+            f.write(f"Body: {exc.body}\n")
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors(), "body": exc.body},
+        )
+
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
         import traceback
