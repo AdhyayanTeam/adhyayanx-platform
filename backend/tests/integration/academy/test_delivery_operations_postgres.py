@@ -159,6 +159,13 @@ async def test_delivery_attendance_mixed_validity_rollback(async_client: httpx.A
         )
         assert result.scalar_one() == 0  # Entire transaction rolled back
         
+        # Verify Session attendance_submitted_at is NULL
+        session_result = await db_session.execute(
+            text("SELECT attendance_submitted_at FROM academy_sessions WHERE id = :sid"),
+            {"sid": session_id}
+        )
+        assert session_result.scalar_one() is None
+        
         # Verify NO Outbox Events
         outbox_result = await db_session.execute(
             text("SELECT COUNT(*) FROM event_outbox WHERE aggregate_id = :sid"),

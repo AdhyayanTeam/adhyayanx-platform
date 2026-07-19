@@ -138,7 +138,7 @@ def override_auth(app_with_db: FastAPI, setup_query_data: dict):
 @pytest.mark.asyncio
 async def test_get_todays_sessions(async_client: AsyncClient, setup_query_data: dict, override_auth: None):
     # Pass today's date implicitly
-    resp = await async_client.get(f"{DELIVERY_PREFIX}/sessions/today")
+    resp = await async_client.get(f"{DELIVERY_PREFIX}/sessions")
     if resp.status_code != 200:
         print(resp.text)
     assert resp.status_code == 200
