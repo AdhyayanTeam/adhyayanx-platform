@@ -70,6 +70,7 @@ class Bootstrap:
         from app.modules.blueprints.academy.students.module import AcademyStudentsModule
         from app.modules.blueprints.academy.delivery.module import AcademyDeliveryModule
         from app.modules.blueprints.academy.enrollment.module import AcademyEnrollmentModule
+        from app.modules.blueprints.academy.admissions.module import AcademyAdmissionsModule
 
         modules: list[PlatformModule] = [
             IdentityModule(),
@@ -79,6 +80,7 @@ class Bootstrap:
             AcademyStudentsModule(),
             AcademyDeliveryModule(),
             AcademyEnrollmentModule(),
+            AcademyAdmissionsModule(),
         ]
 
         for module in modules:

@@ -158,6 +158,31 @@ class SessionTable(Base):
     ends_at = Column(DateTime(timezone=True), nullable=False)
     status = Column(String(50), nullable=False, default="scheduled")
     attendance_submitted_at = Column(DateTime(timezone=True), nullable=True)
+
+class LeadModel(Base):
+    __tablename__ = "academy_leads"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=True)
+    phone = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+class EnquiryModel(Base):
+    __tablename__ = "academy_enquiries"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    lead_id = Column(UUID(as_uuid=True), ForeignKey("academy_leads.id"), nullable=False)
+    course_id = Column(UUID(as_uuid=True), ForeignKey("academy_courses.id"), nullable=False)
+    status = Column(String(50), nullable=False)  # NEW, CONTACTED, FOLLOW_UP, ADMITTED, LOST
+    source = Column(String(50), nullable=False)  # WEBSITE, WALKIN, WHATSAPP, REFERRAL, OTHER
+    assigned_to = Column(UUID(as_uuid=True), nullable=True) # Nullable user id
+    next_follow_up_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    admitted_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     updated_at = Column(
         DateTime(timezone=True),
